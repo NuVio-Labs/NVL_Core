@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Plus, Car, CalendarDays, Users, AlertTriangle, ChevronRight, MapPin, CheckCircle2, X } from 'lucide-react'
+import { Plus, Car, CalendarDays, Users, AlertTriangle, ChevronRight, MapPin, CheckCircle2, X, FileText } from 'lucide-react'
+import { Link } from 'react-router'
 import { useAuth } from '@/features/auth'
 import { useWorkspace } from '@/features/workspace'
 import { useBookingsForRange } from '@/features/bookings/hooks/useBookings'
 import { useResources, useUpdateResource } from '@/features/resources/hooks/useResources'
 import { useStaffMembers } from '@/features/staff/hooks/useStaff'
+import { useContracts } from '@/features/contracts'
 import { BookingDialog } from '@/features/bookings/components/BookingDialog'
 import { cn } from '@/lib/utils'
 import type { Booking } from '@/features/bookings/types'
@@ -217,6 +219,7 @@ export function DashboardPage() {
   const { data: monthBookings = [] } = useBookingsForRange(monthStart, monthEnd)
   const { data: resources = [] } = useResources()
   const { data: staffMembers = [] } = useStaffMembers()
+  const { data: contracts = [] } = useContracts()
 
   const canManage = isAdmin
 
@@ -251,6 +254,15 @@ export function DashboardPage() {
   const monatsumsatz = useMemo(() => {
     return monthBookings.reduce((sum, b) => sum + (b.price_snapshot ?? 0), 0)
   }, [monthBookings])
+
+  // Vertrags-Kennzahlen
+  const contractStats = useMemo(() => {
+    const active = contracts.filter((c) => c.status === 'active').length
+    const draft = contracts.filter((c) => c.status === 'draft').length
+    const paymentOpen = contracts.filter((c) => c.status !== 'cancelled' && c.payment_status === 'open').length
+    const paymentPartial = contracts.filter((c) => c.status !== 'cancelled' && c.payment_status === 'partial').length
+    return { active, draft, paymentOpen, paymentPartial }
+  }, [contracts])
 
   // HU-Warnungen
   const huWarnungen = useMemo(() => {
@@ -459,6 +471,48 @@ export function DashboardPage() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Verträge — nur Admin */}
+        {isAdmin && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Verträge" />
+              <Link to="/contracts" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                Alle anzeigen
+              </Link>
+            </div>
+            <div className="border border-border rounded-lg overflow-hidden">
+              {[
+                {
+                  label: 'Aktive Verträge',
+                  value: contractStats.active,
+                  color: 'bg-blue-500',
+                  sub: contractStats.draft > 0 ? `+ ${contractStats.draft} Entwurf${contractStats.draft !== 1 ? 'e' : ''}` : undefined,
+                },
+                {
+                  label: 'Zahlung offen',
+                  value: contractStats.paymentOpen,
+                  color: 'bg-orange-500',
+                  sub: contractStats.paymentPartial > 0 ? `+ ${contractStats.paymentPartial} Teilzahlung` : undefined,
+                },
+              ].map(({ label, value, color, sub }) => (
+                <div key={label} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0">
+                  <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', color)} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm">{label}</span>
+                    {sub && <span className="ml-2 text-xs text-muted-foreground">{sub}</span>}
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums">{value}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-3 px-4 py-3 border-t border-border bg-muted/30">
+                <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground flex-1">Gesamt</span>
+                <span className="text-sm font-semibold tabular-nums">{contracts.filter((c) => c.status !== 'cancelled').length}</span>
+              </div>
             </div>
           </div>
         )}

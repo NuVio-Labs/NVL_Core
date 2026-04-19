@@ -58,6 +58,201 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          id: string
+          company_id: string
+          booking_id: string | null
+          resource_id: string | null
+          contract_number: number
+          first_name: string
+          last_name: string
+          phone: string | null
+          street: string | null
+          city: string | null
+          profession: string | null
+          employer: string | null
+          id_number: string | null
+          id_issued_at: string | null
+          date_of_birth: string | null
+          place_of_birth: string | null
+          license_class: string | null
+          license_number: string | null
+          license_issued_in: string | null
+          license_issued_at: string | null
+          second_renter: Json | null
+          handover_at: string | null
+          handover_location: string | null
+          return_agreed_at: string | null
+          return_actual_at: string | null
+          return_location: string | null
+          extended_until: string | null
+          km_start: number | null
+          km_end: number | null
+          km_free: number | null
+          price_per_km: number | null
+          price_per_day: number | null
+          price_base: number | null
+          tax_rate: number | null
+          extras: Json
+          loading_gate: boolean | null
+          tachograph: boolean | null
+          tank_full: boolean | null
+          damage: boolean | null
+          damage_notes: string | null
+          tank_return_full: boolean | null
+          returned_by: string | null
+          advance_rent: number | null
+          advance_deposit: number | null
+          payment_status: string
+          payment_method: string | null
+          credit_card_last4: string | null
+          notes: string | null
+          ocr_consent_log: Json | null
+          pdf_url: string | null
+          price_override: number | null
+          price_override_reason: string | null
+          price_override_by: string | null
+          price_override_at: string | null
+          is_locked: boolean
+          archived_at: string | null
+          retention_category: string | null
+          retention_delete_after: string | null
+          status: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          booking_id?: string | null
+          resource_id?: string | null
+          contract_number: number
+          first_name: string
+          last_name: string
+          phone?: string | null
+          street?: string | null
+          city?: string | null
+          profession?: string | null
+          employer?: string | null
+          id_number?: string | null
+          id_issued_at?: string | null
+          date_of_birth?: string | null
+          place_of_birth?: string | null
+          license_class?: string | null
+          license_number?: string | null
+          license_issued_in?: string | null
+          license_issued_at?: string | null
+          second_renter?: Json | null
+          handover_at?: string | null
+          handover_location?: string | null
+          return_agreed_at?: string | null
+          return_actual_at?: string | null
+          return_location?: string | null
+          extended_until?: string | null
+          km_start?: number | null
+          km_end?: number | null
+          km_free?: number | null
+          price_per_km?: number | null
+          price_per_day?: number | null
+          price_base?: number | null
+          tax_rate?: number | null
+          extras?: Json
+          loading_gate?: boolean | null
+          tachograph?: boolean | null
+          tank_full?: boolean | null
+          damage?: boolean | null
+          damage_notes?: string | null
+          tank_return_full?: boolean | null
+          returned_by?: string | null
+          advance_rent?: number | null
+          advance_deposit?: number | null
+          payment_status?: string
+          payment_method?: string | null
+          credit_card_last4?: string | null
+          notes?: string | null
+          ocr_consent_log?: Json | null
+          pdf_url?: string | null
+          price_override?: number | null
+          price_override_reason?: string | null
+          price_override_by?: string | null
+          price_override_at?: string | null
+          is_locked?: boolean
+          archived_at?: string | null
+          retention_category?: string | null
+          retention_delete_after?: string | null
+          status?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          booking_id?: string | null
+          resource_id?: string | null
+          contract_number?: number
+          first_name?: string
+          last_name?: string
+          phone?: string | null
+          street?: string | null
+          city?: string | null
+          profession?: string | null
+          employer?: string | null
+          id_number?: string | null
+          id_issued_at?: string | null
+          date_of_birth?: string | null
+          place_of_birth?: string | null
+          license_class?: string | null
+          license_number?: string | null
+          license_issued_in?: string | null
+          license_issued_at?: string | null
+          second_renter?: Json | null
+          handover_at?: string | null
+          handover_location?: string | null
+          return_agreed_at?: string | null
+          return_actual_at?: string | null
+          return_location?: string | null
+          extended_until?: string | null
+          km_start?: number | null
+          km_end?: number | null
+          km_free?: number | null
+          price_per_km?: number | null
+          price_per_day?: number | null
+          price_base?: number | null
+          tax_rate?: number | null
+          extras?: Json
+          loading_gate?: boolean | null
+          tachograph?: boolean | null
+          tank_full?: boolean | null
+          damage?: boolean | null
+          damage_notes?: string | null
+          tank_return_full?: boolean | null
+          returned_by?: string | null
+          advance_rent?: number | null
+          advance_deposit?: number | null
+          payment_status?: string
+          payment_method?: string | null
+          credit_card_last4?: string | null
+          notes?: string | null
+          ocr_consent_log?: Json | null
+          pdf_url?: string | null
+          price_override?: number | null
+          price_override_reason?: string | null
+          price_override_by?: string | null
+          price_override_at?: string | null
+          is_locked?: boolean
+          archived_at?: string | null
+          retention_category?: string | null
+          retention_delete_after?: string | null
+          status?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           company_id: string
