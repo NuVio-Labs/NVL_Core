@@ -24,6 +24,10 @@ const router = createBrowserRouter([
         lazy: () => import('@/pages/OnboardingPage').then((m) => ({ Component: m.OnboardingPage })),
       },
       {
+        path: 'datenschutz',
+        lazy: () => import('@/pages/DatenschutzPage').then((m) => ({ Component: m.DatenschutzPage })),
+      },
+      {
         element: <ProtectedRoute />,
         children: [
           {
