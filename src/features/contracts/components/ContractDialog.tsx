@@ -763,6 +763,15 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
           </div>
         </form>
 
+        {/* Datenschutz */}
+        <div className="px-6 py-2 border-t border-border shrink-0 text-xs text-muted-foreground">
+          Mit dem Speichern bestätigen Sie, dass Sie die{' '}
+          <a href="/datenschutz" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+            Datenschutzerklärung
+          </a>{' '}
+          gelesen haben.
+        </div>
+
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border shrink-0">
           <div className="flex items-center gap-3">
