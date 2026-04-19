@@ -566,8 +566,8 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
                   <Field label="Stadt / PLZ">
                     <input {...register('second_renter.city')} disabled={disabled} className={inputCls} />
                   </Field>
-                  <Field label="Ausweisnummer">
-                    <input {...register('second_renter.id_number')} disabled={disabled} className={inputCls} />
+                  <Field label="Dokument-Nr. (kein PA)">
+                    <input {...register('second_renter.id_number')} disabled={disabled} className={inputCls} placeholder="Führerschein-Nr. / Reisepass-Nr." />
                   </Field>
                   <Field label="Führerscheinklasse">
                     <input {...register('second_renter.license_class')} disabled={disabled} className={inputCls} />
