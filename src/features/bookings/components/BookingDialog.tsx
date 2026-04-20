@@ -124,9 +124,9 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
         date: start.toISOString().slice(0, 10),
         time: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
         resource_id: booking.resource_id,
-        duration_mapping_id: '',
+        duration_mapping_id: durationMappings.find((m) => m.field_name === (booking as { duration_field?: string | null }).duration_field)?.id ?? '',
         price_list_id: booking.price_list_id ?? '',
-        km_package: '',
+        km_package: (booking as { km_package?: string | null }).km_package ?? '',
         notes: booking.notes ?? '',
         metadata: meta,
       })
@@ -139,7 +139,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
       })
     }
     setAvailability(null)
-  }, [open, booking, fieldDefinitions]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, booking, fieldDefinitions, durationMappings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const watchedResourceId = useWatch({ control, name: 'resource_id' })
   const watchedDurationId = useWatch({ control, name: 'duration_mapping_id' })
