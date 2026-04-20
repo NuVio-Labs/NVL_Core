@@ -6,8 +6,11 @@ import { X, CheckCircle, ChevronDown, ChevronUp, AlertCircle, Printer } from 'lu
 import { cn } from '@/lib/utils'
 import { useResources } from '@/features/resources/hooks/useResources'
 import { useCreateContract, useUpdateContract } from '../hooks/useContracts'
+import { useFeatureOcrScan } from '../hooks/useFeatureOcrScan'
 import { CompleteModal } from './CompleteModal'
 import { PrintDialog } from './PrintDialog'
+import { LicenseScanButton } from './LicenseScanButton'
+import type { ScannedLicenseData } from './LicenseScanButton'
 import type { ContractWithDetails, ContractExtras, ContractSecondRenter } from '../types'
 import type { BookingWithCreator } from '@/features/bookings/types'
 
@@ -257,12 +260,21 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
   const { data: resources = [] } = useResources()
   const createContract = useCreateContract()
   const updateContract = useUpdateContract()
+  const ocrEnabled = useFeatureOcrScan()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'draft', payment_status: 'open' },
   })
-  const { register, handleSubmit, reset, watch, control, formState: { errors, isSubmitting } } = form
+  const { register, handleSubmit, reset, watch, control, setValue, formState: { errors, isSubmitting } } = form
+
+  function handleScanResult(data: ScannedLicenseData) {
+    if (data.first_name) setValue('first_name', data.first_name)
+    if (data.last_name) setValue('last_name', data.last_name)
+    if (data.date_of_birth) setValue('date_of_birth', data.date_of_birth)
+    if (data.license_number) setValue('license_number', data.license_number)
+    if (data.license_class) setValue('license_class', data.license_class)
+  }
 
   // Live watch for price summary
   const watchedValues = useWatch({ control })
@@ -482,6 +494,10 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
                 <strong>PAuswG § 20:</strong> Keine Personalausweis-Seriennummer speichern. Führerschein-Nr. und Reisepass-Nr. sind erlaubt.
               </span>
             </div>
+
+            {ocrEnabled && !disabled && (
+              <LicenseScanButton onResult={handleScanResult} disabled={disabled} />
+            )}
 
             <Field label="Führerscheinklasse">
               <select {...register('license_class')} disabled={disabled} className={inputCls}>

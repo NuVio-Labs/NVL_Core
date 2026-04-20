@@ -578,6 +578,39 @@ export function SettingsPage() {
             </div>
           </div>
 
+          {/* Features */}
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-base font-semibold">Features</h2>
+              <p className="text-muted-foreground text-sm mt-0.5">Optionale Funktionen für diesen Mandanten</p>
+            </div>
+            <div className="border border-border rounded-lg divide-y divide-border">
+              <div className="flex items-center justify-between px-4 py-3.5">
+                <div>
+                  <p className="text-sm font-medium">Führerschein-Scan (OCR)</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Ermöglicht das Scannen eines Führerscheinfotos zur automatischen Feldbefüllung im Vertragsformular. Verarbeitung erfolgt lokal im Browser — kein Upload, kein Server.
+                  </p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={companySettings.feature_ocr_scan === true}
+                  onClick={() => updateSettings.mutate({ feature_ocr_scan: companySettings.feature_ocr_scan !== true })}
+                  disabled={updateSettings.isPending}
+                  className={cn(
+                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-50',
+                    companySettings.feature_ocr_scan === true ? 'bg-primary' : 'bg-muted-foreground/30',
+                  )}
+                >
+                  <span className={cn(
+                    'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform',
+                    companySettings.feature_ocr_scan === true ? 'translate-x-5' : 'translate-x-0',
+                  )} />
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Preislisten */}
           <div className="space-y-3">
             <div>
