@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X, CheckCircle, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
+import { X, CheckCircle, ChevronDown, ChevronUp, AlertCircle, Printer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useResources } from '@/features/resources/hooks/useResources'
 import { useCreateContract, useUpdateContract } from '../hooks/useContracts'
 import { CompleteModal } from './CompleteModal'
+import { PrintDialog } from './PrintDialog'
 import type { ContractWithDetails, ContractExtras, ContractSecondRenter } from '../types'
 import type { BookingWithCreator } from '@/features/bookings/types'
 
@@ -256,6 +257,7 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
   const canComplete = isEdit && !isLocked && contract.status !== 'cancelled' && contract.status !== 'completed'
 
   const [completeOpen, setCompleteOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
   const [extrasOpen, setExtrasOpen] = useState(false)
   const [secondRenterOpen, setSecondRenterOpen] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -785,6 +787,16 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
                 Abschließen
               </button>
             )}
+            {isEdit && (
+              <button
+                type="button"
+                onClick={() => setPrintOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                Drucken
+              </button>
+            )}
             {submitError && (
               <span className="flex items-center gap-1.5 text-xs text-destructive">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -817,6 +829,12 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
         <CompleteModal
           contract={contract}
           onClose={() => { setCompleteOpen(false); onClose() }}
+        />
+      )}
+      {printOpen && contract && (
+        <PrintDialog
+          contract={contract}
+          onClose={() => setPrintOpen(false)}
         />
       )}
     </div>

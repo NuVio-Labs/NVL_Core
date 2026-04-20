@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
-import { Plus, FileText, Search, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle } from 'lucide-react'
+import { Plus, FileText, Search, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Printer } from 'lucide-react'
 import { useWorkspace } from '@/features/workspace'
 import { useContracts, useCancelContract } from '@/features/contracts'
 import type { ContractWithDetails } from '@/features/contracts'
 import { ContractDialog } from '@/features/contracts/components/ContractDialog'
 import { CompleteModal } from '@/features/contracts/components/CompleteModal'
+import { PrintDialog } from '@/features/contracts/components/PrintDialog'
 
 import { EmptyState } from '@/components/EmptyState'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,7 @@ export function ContractsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ContractWithDetails | undefined>()
   const [completing, setCompleting] = useState<ContractWithDetails | undefined>()
+  const [printing, setPrinting] = useState<ContractWithDetails | undefined>()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('alle')
   const [sort, setSort] = useState<{ key: string; dir: SortDir } | null>({ key: 'contract_number', dir: 'desc' })
@@ -247,6 +249,13 @@ export function ContractsPage() {
                           >
                             Öffnen
                           </button>
+                          <button
+                            onClick={() => setPrinting(c)}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            Drucken
+                          </button>
                           {c.status !== 'cancelled' && c.status !== 'completed' && (
                             <>
                               <button
@@ -285,6 +294,13 @@ export function ContractsPage() {
         <CompleteModal
           contract={completing}
           onClose={() => setCompleting(undefined)}
+        />
+      )}
+
+      {printing && (
+        <PrintDialog
+          contract={printing}
+          onClose={() => setPrinting(undefined)}
         />
       )}
     </div>

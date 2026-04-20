@@ -17,7 +17,7 @@ export const bookingService = {
     const end = new Date(year, month, 1).toISOString()
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, creator:profiles!bookings_created_by_fkey(id, full_name, email)')
+      .select('*, creator:profiles!bookings_created_by_fkey(id, full_name, email), resource:resources(id, name, metadata)')
       .eq('company_id', companyId)
       .lt('starts_at', end)
       .gt('ends_at', start)

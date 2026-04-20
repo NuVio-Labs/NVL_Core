@@ -148,10 +148,10 @@ export function BookingsPage() {
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter((b) => {
-        const meta = (b.metadata ?? {}) as Record<string, unknown>
+        const resourceMeta = (b.resource?.metadata ?? {}) as Record<string, unknown>
         return (
           `${b.first_name} ${b.last_name}`.toLowerCase().includes(q) ||
-          String(meta.kennzeichen ?? '').toLowerCase().includes(q)
+          String(resourceMeta.kennzeichen ?? '').toLowerCase().includes(q)
         )
       })
     }
@@ -320,7 +320,7 @@ export function BookingsPage() {
                       className="hover:bg-muted/50 transition-colors cursor-pointer"
                     >
                       <td className="px-4 py-3 font-medium">{b.first_name} {b.last_name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{String((b.metadata as Record<string, unknown>)?.kennzeichen ?? '—')}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{String((b.resource?.metadata as Record<string, unknown>)?.kennzeichen ?? '—')}</td>
                       <td className="px-4 py-3 text-muted-foreground">{formatDateTime(b.starts_at)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{formatDateTime(b.ends_at)}</td>
                       <td className="px-4 py-3">
@@ -445,6 +445,7 @@ export function BookingsPage() {
         booking={editingBooking}
         initialDate={selectedDate}
         onClose={handleClose}
+        onCreateContract={(b) => { setContractPrefill(b as BookingWithCreator); setContractDialogOpen(true) }}
       />
 
       <ContractDialog

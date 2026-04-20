@@ -61,13 +61,14 @@ interface Props {
   booking?: Booking | BookingWithCreator
   initialDate?: Date
   onClose: () => void
+  onCreateContract?: (booking: Booking | BookingWithCreator) => void
 }
 
 function formatPrice(v: number) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(v)
 }
 
-export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
+export function BookingDialog({ open, booking, initialDate, onClose, onCreateContract }: Props) {
   const { data: resources = [] } = useResources()
   const { data: priceLists = [] } = usePriceLists()
   const { data: durationMappings = [] } = useDurationTariffMappings()
@@ -277,6 +278,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
       price_snapshot: calculatedPrice ?? null,
       notes: values.notes || null,
       metadata: values.metadata ?? {},
+      created_by: activeMembership?.profile_id ?? null,
     }
 
     if (booking) {
@@ -639,7 +641,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
 
           {/* Actions */}
           <div className="flex gap-2 justify-between pt-2">
-            <div>
+            <div className="flex gap-2">
               {booking && booking.status !== 'cancelled' && (
                 <button
                   type="button"
@@ -648,6 +650,15 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
                   className="px-4 py-2 text-sm rounded-md border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                 >
                   Stornieren
+                </button>
+              )}
+              {booking && onCreateContract && booking.status !== 'cancelled' && (
+                <button
+                  type="button"
+                  onClick={() => { onClose(); onCreateContract(booking) }}
+                  className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors"
+                >
+                  Vertrag anlegen
                 </button>
               )}
             </div>
