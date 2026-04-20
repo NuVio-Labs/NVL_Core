@@ -274,6 +274,8 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
     if (data.date_of_birth) setValue('date_of_birth', data.date_of_birth)
     if (data.license_number) setValue('license_number', data.license_number)
     if (data.license_class) setValue('license_class', data.license_class)
+    if (data.street) setValue('street', data.street)
+    if (data.city) setValue('city', data.city)
   }
 
   // Live watch for price summary
