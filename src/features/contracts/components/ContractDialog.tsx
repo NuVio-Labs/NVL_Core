@@ -17,8 +17,6 @@ const secondRenterSchema = z.object({
   first_name: z.string().min(1, 'Vorname erforderlich'),
   last_name: z.string().min(1, 'Nachname erforderlich'),
   phone: z.string().optional(),
-  street: z.string().optional(),
-  city: z.string().optional(),
   date_of_birth: z.string().optional(),
   id_number: z.string().optional(),
   license_class: z.string().optional(),
@@ -45,15 +43,9 @@ const schema = z.object({
   street: z.string().optional(),
   city: z.string().optional(),
   date_of_birth: z.string().optional(),
-  place_of_birth: z.string().optional(),
-  profession: z.string().optional(),
-  employer: z.string().optional(),
   id_number: z.string().optional(),
-  id_issued_at: z.string().optional(),
   license_class: z.string().optional(),
   license_number: z.string().optional(),
-  license_issued_in: z.string().optional(),
-  license_issued_at: z.string().optional(),
 
   has_second_renter: z.boolean().optional(),
   second_renter: secondRenterSchema.optional(),
@@ -290,22 +282,14 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
         street: contract.street ?? '',
         city: contract.city ?? '',
         date_of_birth: toDateInput(contract.date_of_birth),
-        place_of_birth: contract.place_of_birth ?? '',
-        profession: contract.profession ?? '',
-        employer: contract.employer ?? '',
         id_number: contract.id_number ?? '',
-        id_issued_at: toDateInput(contract.id_issued_at),
         license_class: contract.license_class ?? '',
         license_number: contract.license_number ?? '',
-        license_issued_in: contract.license_issued_in ?? '',
-        license_issued_at: toDateInput(contract.license_issued_at),
         has_second_renter: !!sr,
         second_renter: sr ? {
           first_name: sr.first_name ?? '',
           last_name: sr.last_name ?? '',
           phone: sr.phone ?? '',
-          street: sr.street ?? '',
-          city: sr.city ?? '',
           date_of_birth: sr.date_of_birth ?? '',
           id_number: sr.id_number ?? '',
           license_class: sr.license_class ?? '',
@@ -388,15 +372,9 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
         street: values.street || null,
         city: values.city || null,
         date_of_birth: values.date_of_birth || null,
-        place_of_birth: values.place_of_birth || null,
-        profession: values.profession || null,
-        employer: values.employer || null,
         id_number: values.id_number || null,
-        id_issued_at: values.id_issued_at || null,
         license_class: values.license_class || null,
         license_number: values.license_number || null,
-        license_issued_in: values.license_issued_in || null,
-        license_issued_at: values.license_issued_at || null,
         second_renter: sr,
         resource_id: values.resource_id || null,
         booking_id: prefillBooking?.id ?? contract?.booking_id ?? null,
@@ -486,53 +464,43 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
             <Field label="Telefon">
               <input {...register('phone')} disabled={disabled} className={inputCls} />
             </Field>
-            <Field label="Beruf">
-              <input {...register('profession')} disabled={disabled} className={inputCls} />
-            </Field>
-            <Field label="Straße / Hausnummer">
-              <input {...register('street')} disabled={disabled} className={inputCls} />
-            </Field>
-            <Field label="Stadt / PLZ">
-              <input {...register('city')} disabled={disabled} className={inputCls} />
-            </Field>
             <Field label="Geburtsdatum">
               <input type="date" {...register('date_of_birth')} disabled={disabled} className={inputCls} />
             </Field>
-            <Field label="Geburtsort">
-              <input {...register('place_of_birth')} disabled={disabled} className={inputCls} />
+            <Field label="Straße / Hausnummer" span>
+              <input {...register('street')} disabled={disabled} className={inputCls} />
             </Field>
-            <Field label="Arbeitgeber">
-              <input {...register('employer')} disabled={disabled} className={inputCls} />
+            <Field label="Stadt / PLZ" span>
+              <input {...register('city')} disabled={disabled} className={inputCls} />
             </Field>
 
-            <SectionTitle>Ausweis & Führerschein</SectionTitle>
+            <SectionTitle>Führerschein</SectionTitle>
 
             <div className="col-span-full flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
               <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <span>
-                <strong>PAuswG § 20:</strong> Personalausweis-Seriennummern dürfen nicht gespeichert werden.
-                Nur Dokumententyp und Ablaufdatum sind ohne explizite Einwilligung zulässig.
-                Führerschein-Nr. und Reisepass-Nr. sind erlaubt.
+                <strong>PAuswG § 20:</strong> Keine Personalausweis-Seriennummer speichern. Führerschein-Nr. und Reisepass-Nr. sind erlaubt.
               </span>
             </div>
 
-            <Field label="Dokument-Nr. (kein PA)">
-              <input {...register('id_number')} disabled={disabled} className={inputCls} placeholder="Führerschein-Nr. / Reisepass-Nr." />
-            </Field>
-            <Field label="Ausgestellt am">
-              <input type="date" {...register('id_issued_at')} disabled={disabled} className={inputCls} />
-            </Field>
             <Field label="Führerscheinklasse">
-              <input {...register('license_class')} disabled={disabled} className={inputCls} />
+              <select {...register('license_class')} disabled={disabled} className={inputCls}>
+                <option value="">— wählen —</option>
+                <option value="B">B</option>
+                <option value="BE">BE</option>
+                <option value="C">C</option>
+                <option value="CE">CE</option>
+                <option value="C1">C1</option>
+                <option value="C1E">C1E</option>
+                <option value="L">L</option>
+                <option value="T">T</option>
+              </select>
             </Field>
             <Field label="Führerscheinnummer">
               <input {...register('license_number')} disabled={disabled} className={inputCls} />
             </Field>
-            <Field label="Ausgestellt in">
-              <input {...register('license_issued_in')} disabled={disabled} className={inputCls} />
-            </Field>
-            <Field label="Ausgestellt am (FS)">
-              <input type="date" {...register('license_issued_at')} disabled={disabled} className={inputCls} />
+            <Field label="Dokument-Nr. (kein PA)" span>
+              <input {...register('id_number')} disabled={disabled} className={inputCls} placeholder="Reisepass-Nr. o.ä." />
             </Field>
 
             {/* ── Zweiter Mieter ── */}
@@ -562,20 +530,24 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
                   <Field label="Geburtsdatum">
                     <input type="date" {...register('second_renter.date_of_birth')} disabled={disabled} className={inputCls} />
                   </Field>
-                  <Field label="Straße / Hausnummer">
-                    <input {...register('second_renter.street')} disabled={disabled} className={inputCls} />
-                  </Field>
-                  <Field label="Stadt / PLZ">
-                    <input {...register('second_renter.city')} disabled={disabled} className={inputCls} />
-                  </Field>
-                  <Field label="Dokument-Nr. (kein PA)">
-                    <input {...register('second_renter.id_number')} disabled={disabled} className={inputCls} placeholder="Führerschein-Nr. / Reisepass-Nr." />
-                  </Field>
                   <Field label="Führerscheinklasse">
-                    <input {...register('second_renter.license_class')} disabled={disabled} className={inputCls} />
+                    <select {...register('second_renter.license_class')} disabled={disabled} className={inputCls}>
+                      <option value="">— wählen —</option>
+                      <option value="B">B</option>
+                      <option value="BE">BE</option>
+                      <option value="C">C</option>
+                      <option value="CE">CE</option>
+                      <option value="C1">C1</option>
+                      <option value="C1E">C1E</option>
+                      <option value="L">L</option>
+                      <option value="T">T</option>
+                    </select>
                   </Field>
-                  <Field label="Führerscheinnummer" span>
+                  <Field label="Führerscheinnummer">
                     <input {...register('second_renter.license_number')} disabled={disabled} className={inputCls} />
+                  </Field>
+                  <Field label="Dokument-Nr. (kein PA)" span>
+                    <input {...register('second_renter.id_number')} disabled={disabled} className={inputCls} placeholder="Reisepass-Nr. o.ä." />
                   </Field>
                 </>
               )}
