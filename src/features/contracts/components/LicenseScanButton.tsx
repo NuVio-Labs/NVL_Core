@@ -30,10 +30,10 @@ async function fileToBase64(file: File): Promise<string> {
   })
 }
 
-async function callOcrEdgeFunction(file: File): Promise<ScannedLicenseData> {
+async function callOcrEdgeFunction(file: File, mode: 'license_front' | 'id_back'): Promise<ScannedLicenseData> {
   const base64 = await fileToBase64(file)
   const { data, error } = await supabase.functions.invoke('ocr-license', {
-    body: { image_base64: base64, mime_type: file.type },
+    body: { image_base64: base64, mime_type: file.type, mode },
   })
   if (error) {
     // Versuche den response body zu lesen für bessere Fehlermeldung
@@ -46,9 +46,16 @@ async function callOcrEdgeFunction(file: File): Promise<ScannedLicenseData> {
   return data as ScannedLicenseData
 }
 
-export function LicenseScanButton({ onResult, disabled }: Props) {
+interface ScanButtonProps {
+  label: string
+  mode: 'license_front' | 'id_back'
+  consented: boolean
+  onResult: (data: ScannedLicenseData) => void
+  disabled?: boolean
+}
+
+function SingleScanButton({ label, mode, consented, onResult, disabled }: ScanButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [consented, setConsented] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,10 +63,10 @@ export function LicenseScanButton({ onResult, disabled }: Props) {
     setError(null)
     setLoading(true)
     try {
-      const parsed = await callOcrEdgeFunction(file)
+      const parsed = await callOcrEdgeFunction(file, mode)
       onResult(parsed)
-      const count = Object.values(parsed).filter(Boolean).length
-      if (count === 0) setError('Keine Felder erkannt — bitte manuell prüfen.')
+      if (Object.values(parsed).filter(Boolean).length === 0)
+        setError('Keine Felder erkannt — bitte manuell prüfen.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler beim Scannen.')
     } finally {
@@ -69,27 +76,7 @@ export function LicenseScanButton({ onResult, disabled }: Props) {
   }
 
   return (
-    <div className="col-span-full space-y-3 border border-blue-200 bg-blue-50 rounded-md px-4 py-3">
-      <div className="flex items-start gap-2 text-xs text-blue-700">
-        <ScanLine className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-        <span>
-          <strong>Führerschein scannen (KI):</strong> Das Foto wird zur Texterkennung einmalig an OpenAI übertragen und nicht gespeichert. Nur die extrahierten Textfelder werden übernommen.
-        </span>
-      </div>
-
-      {/* Consent */}
-      <label className="flex items-start gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={consented}
-          onChange={e => setConsented(e.target.checked)}
-          className="mt-0.5 w-4 h-4 rounded border-border"
-        />
-        <span className="text-xs text-foreground">
-          Ich willige ein, dass das Führerscheinfoto zur automatischen Felderkennung einmalig an OpenAI übertragen wird. Das Bild wird nicht gespeichert.
-        </span>
-      </label>
-
+    <div className="flex flex-col gap-1">
       <input
         ref={inputRef}
         type="file"
@@ -98,28 +85,65 @@ export function LicenseScanButton({ onResult, disabled }: Props) {
         className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
       />
-
       <button
         type="button"
         disabled={disabled || loading || !consented}
         onClick={() => inputRef.current?.click()}
         className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-blue-300 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {loading
-          ? <Loader2 className="w-4 h-4 animate-spin" />
-          : consented
-            ? <ScanLine className="w-4 h-4" />
-            : <ShieldCheck className="w-4 h-4" />
-        }
-        {loading ? 'Wird erkannt…' : 'Führerschein (Vorderseite) scannen'}
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+        {loading ? 'Wird erkannt…' : label}
       </button>
-
       {error && (
         <div className="flex items-center gap-1.5 text-xs text-amber-700">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           {error}
         </div>
       )}
+    </div>
+  )
+}
+
+export function LicenseScanButton({ onResult, disabled }: Props) {
+  const [consented, setConsented] = useState(false)
+
+  return (
+    <div className="col-span-full space-y-3 border border-blue-200 bg-blue-50 rounded-md px-4 py-3">
+      <div className="flex items-start gap-2 text-xs text-blue-700">
+        <ScanLine className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+        <span>
+          <strong>Dokumente scannen (KI):</strong> Fotos werden zur Texterkennung einmalig an OpenAI übertragen und nicht gespeichert. Nur die extrahierten Felder werden übernommen.
+        </span>
+      </div>
+
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={consented}
+          onChange={e => setConsented(e.target.checked)}
+          className="mt-0.5 w-4 h-4 rounded border-border"
+        />
+        <span className="text-xs text-foreground">
+          Ich willige ein, dass die Dokumentenfotos zur automatischen Felderkennung einmalig an OpenAI übertragen werden. Die Bilder werden nicht gespeichert.
+        </span>
+      </label>
+
+      <div className="flex flex-wrap gap-3">
+        <SingleScanButton
+          label="Führerschein (Vorderseite)"
+          mode="license_front"
+          consented={consented}
+          onResult={onResult}
+          disabled={disabled}
+        />
+        <SingleScanButton
+          label="Ausweis Rückseite (Adresse)"
+          mode="id_back"
+          consented={consented}
+          onResult={onResult}
+          disabled={disabled}
+        />
+      </div>
     </div>
   )
 }

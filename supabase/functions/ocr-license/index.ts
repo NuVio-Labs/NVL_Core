@@ -5,25 +5,8 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
-
-  try {
-    const { image_base64, mime_type } = await req.json() as {
-      image_base64: string
-      mime_type: string
-    }
-
-    if (!image_base64 || !mime_type) {
-      return new Response(JSON.stringify({ error: 'image_base64 and mime_type required' }), {
-        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const apiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!apiKey) throw new Error('OPENAI_API_KEY not configured')
-
-    const prompt = `Du siehst die Vorderseite eines deutschen Führerscheins.
+const PROMPTS: Record<string, string> = {
+  license_front: `Du siehst die Vorderseite eines deutschen Führerscheins.
 Extrahiere ausschließlich diese Felder und gib sie als JSON zurück:
 {
   "last_name": "Nachname aus Feld 1",
@@ -37,7 +20,42 @@ Wichtig:
 - date_of_birth immer als YYYY-MM-DD
 - license_class: wähle die höchste Klasse in dieser Reihenfolge: CE > C1E > C1 > C > BE > B > L > T > AM > A > A2 > A1
 - Falls ein Feld nicht erkennbar ist, setze null
-- Antworte NUR mit dem JSON-Objekt, kein Text davor oder danach`
+- Antworte NUR mit dem JSON-Objekt, kein Text davor oder danach`,
+
+  id_back: `Du siehst die Rückseite eines deutschen Personalausweises.
+Extrahiere ausschließlich die Adresse und gib sie als JSON zurück:
+{
+  "street": "Straße und Hausnummer (z.B. Nimweger Straße 3)",
+  "city": "PLZ und Ort (z.B. 47559 Kranenburg)"
+}
+Wichtig:
+- Nur diese 2 Felder, nichts anderes — keine Ausweisnummer, kein Geburtsdatum, keine MRZ
+- street: Straßenname und Hausnummer in lesbarer Form, Titelcase
+- city: PLZ (5-stellig) gefolgt von Ortsname, Titelcase
+- Falls ein Feld nicht erkennbar ist, setze null
+- Antworte NUR mit dem JSON-Objekt, kein Text davor oder danach`,
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
+  try {
+    const { image_base64, mime_type, mode = 'license_front' } = await req.json() as {
+      image_base64: string
+      mime_type: string
+      mode?: string
+    }
+
+    if (!image_base64 || !mime_type) {
+      return new Response(JSON.stringify({ error: 'image_base64 and mime_type required' }), {
+        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const apiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!apiKey) throw new Error('OPENAI_API_KEY not configured')
+
+    const prompt = PROMPTS[mode] ?? PROMPTS.license_front
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -65,8 +83,6 @@ Wichtig:
 
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content ?? '{}'
-
-    // JSON aus Antwort extrahieren
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error('No JSON in response')
     const parsed = JSON.parse(jsonMatch[0])
