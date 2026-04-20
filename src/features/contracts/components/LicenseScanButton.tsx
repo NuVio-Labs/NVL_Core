@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import { ScanLine, Loader2, AlertCircle } from 'lucide-react'
-import { createWorker } from 'tesseract.js'
+import { ScanLine, Loader2, AlertCircle, ShieldCheck } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export interface ScannedLicenseData {
   last_name?: string
@@ -8,6 +8,8 @@ export interface ScannedLicenseData {
   date_of_birth?: string
   license_number?: string
   license_class?: string
+  street?: string
+  city?: string
 }
 
 interface Props {
@@ -15,83 +17,38 @@ interface Props {
   disabled?: boolean
 }
 
-function parseLicenseText(text: string): ScannedLicenseData {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
-  const result: ScannedLicenseData = {}
-
-  // Führerschein-Felder: Nummern können als "1." "1," "1" erkannt werden
-  // Zusätzlich: kompletten Text als Fallback durchsuchen
-  const fullText = lines.join(' ')
-
-  for (const line of lines) {
-    // Feld 1: Nachname — flexibles Matching auf "1." / "1," / "1 "
-    if (!result.last_name) {
-      const m = line.match(/^[1l|]\s*[.,]?\s*([A-ZÄÖÜ][a-zA-ZäöüÄÖÜß-]+)/)
-      if (m) result.last_name = m[1].trim()
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      // Entferne "data:image/...;base64," Präfix
+      resolve(result.split(',')[1])
     }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
-    // Feld 2: Vorname
-    if (!result.first_name) {
-      const m = line.match(/^2\s*[.,]?\s*([A-ZÄÖÜ][a-zA-ZäöüÄÖÜß-]+)/)
-      if (m) result.first_name = m[1].trim()
-    }
-
-    // Feld 3: Geburtsdatum — DD.MM.YY oder DD.MM.YYYY anywhere in line starting with 3
-    if (!result.date_of_birth) {
-      const m = line.match(/^3\s*[.,]?\s*(\d{2}[.\-/]\d{2}[.\-/]\d{2,4})/)
-      if (m) {
-        const parts = m[1].split(/[.\-/]/)
-        const year = parts[2].length === 2 ? `19${parts[2]}` : parts[2]
-        result.date_of_birth = `${year}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
-      }
-    }
-
-    // Feld 5: Führerscheinnummer (alphanumerisch, mind. 6 Zeichen)
-    if (!result.license_number) {
-      const m = line.match(/^5\s*[.,]?\s*([A-Z0-9]{6,})/i)
-      if (m) result.license_number = m[1].trim()
-    }
-
-    // Feld 9: Klassen
-    if (!result.license_class) {
-      const m = line.match(/^9\s*[.,]?\s*([A-Z0-9/,\s]{2,})/i)
-      if (m) {
-        const raw = m[1].toUpperCase()
-        const order = ['CE', 'C1E', 'C1', 'C', 'BE', 'B', 'L', 'T', 'AM', 'A2', 'A1', 'A']
-        const found = order.find((cls) => new RegExp(`\\b${cls}\\b`).test(raw) || raw.includes(cls))
-        if (found) result.license_class = found
-      }
-    }
+async function callOcrEdgeFunction(file: File): Promise<ScannedLicenseData> {
+  const base64 = await fileToBase64(file)
+  const { data, error } = await supabase.functions.invoke('ocr-license', {
+    body: { image_base64: base64, mime_type: file.type },
+  })
+  if (error) {
+    // Versuche den response body zu lesen für bessere Fehlermeldung
+    const detail = (error as { context?: { text?: () => Promise<string> } }).context?.text
+      ? await (error as { context: { text: () => Promise<string> } }).context.text()
+      : error.message
+    throw new Error(detail)
   }
-
-  // Fallback: Datum irgendwo im Text suchen wenn noch nicht gefunden
-  if (!result.date_of_birth) {
-    const m = fullText.match(/(\d{2})[.\-/](\d{2})[.\-/](\d{2,4})/)
-    if (m) {
-      const year = m[3].length === 2 ? `19${m[3]}` : m[3]
-      result.date_of_birth = `${year}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`
-    }
-  }
-
-  // Fallback: FS-Nummer irgendwo im Text (Muster: J11003AI222)
-  if (!result.license_number) {
-    const m = fullText.match(/\b([A-Z]\d{5,}[A-Z0-9]*)\b/)
-    if (m) result.license_number = m[1]
-  }
-
-  // Fallback: Klassen irgendwo im Text
-  if (!result.license_class) {
-    const order = ['CE', 'C1E', 'C1', 'C', 'BE', 'B', 'L', 'T', 'AM', 'A2', 'A1', 'A']
-    const upper = fullText.toUpperCase()
-    const found = order.find((cls) => new RegExp(`\\b${cls}\\b`).test(upper))
-    if (found) result.license_class = found
-  }
-
-  return result
+  if (data?.error) throw new Error(data.error)
+  return data as ScannedLicenseData
 }
 
 export function LicenseScanButton({ onResult, disabled }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [consented, setConsented] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -99,18 +56,12 @@ export function LicenseScanButton({ onResult, disabled }: Props) {
     setError(null)
     setLoading(true)
     try {
-      const worker = await createWorker('deu')
-      const { data: { text } } = await worker.recognize(file)
-      await worker.terminate()
-
-      // Bild sofort freigeben — nie gespeichert
-      const parsed = parseLicenseText(text)
+      const parsed = await callOcrEdgeFunction(file)
       onResult(parsed)
-      if (Object.keys(parsed).length === 0) {
-        setError('Wenige Felder erkannt — bitte manuell prüfen.')
-      }
-    } catch {
-      setError('OCR fehlgeschlagen. Bitte erneut versuchen.')
+      const count = Object.values(parsed).filter(Boolean).length
+      if (count === 0) setError('Keine Felder erkannt — bitte manuell prüfen.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Scannen.')
     } finally {
       setLoading(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -118,13 +69,26 @@ export function LicenseScanButton({ onResult, disabled }: Props) {
   }
 
   return (
-    <div className="col-span-full">
-      <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2 mb-2">
+    <div className="col-span-full space-y-3 border border-blue-200 bg-blue-50 rounded-md px-4 py-3">
+      <div className="flex items-start gap-2 text-xs text-blue-700">
         <ScanLine className="w-3.5 h-3.5 shrink-0 mt-0.5" />
         <span>
-          <strong>Führerschein scannen:</strong> Das Foto wird nur lokal verarbeitet und nicht gespeichert oder übertragen.
+          <strong>Führerschein scannen (KI):</strong> Das Foto wird zur Texterkennung einmalig an OpenAI übertragen und nicht gespeichert. Nur die extrahierten Textfelder werden übernommen.
         </span>
       </div>
+
+      {/* Consent */}
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={consented}
+          onChange={e => setConsented(e.target.checked)}
+          className="mt-0.5 w-4 h-4 rounded border-border"
+        />
+        <span className="text-xs text-foreground">
+          Ich willige ein, dass das Führerscheinfoto zur automatischen Felderkennung einmalig an OpenAI übertragen wird. Das Bild wird nicht gespeichert.
+        </span>
+      </label>
 
       <input
         ref={inputRef}
@@ -132,24 +96,26 @@ export function LicenseScanButton({ onResult, disabled }: Props) {
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) handleFile(file)
-        }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
       />
 
       <button
         type="button"
-        disabled={disabled || loading}
+        disabled={disabled || loading || !consented}
         onClick={() => inputRef.current?.click()}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50"
+        className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-blue-300 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
-        {loading ? 'Wird erkannt…' : 'Führerschein scannen'}
+        {loading
+          ? <Loader2 className="w-4 h-4 animate-spin" />
+          : consented
+            ? <ScanLine className="w-4 h-4" />
+            : <ShieldCheck className="w-4 h-4" />
+        }
+        {loading ? 'Wird erkannt…' : 'Führerschein (Vorderseite) scannen'}
       </button>
 
       {error && (
-        <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-700">
+        <div className="flex items-center gap-1.5 text-xs text-amber-700">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           {error}
         </div>
