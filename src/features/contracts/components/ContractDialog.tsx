@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { X, CheckCircle, ChevronDown, ChevronUp, AlertCircle, Printer } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/features/auth'
 import { useResources } from '@/features/resources/hooks/useResources'
 import { useCreateContract, useUpdateContract } from '../hooks/useContracts'
 import { useFeatureOcrScan } from '../hooks/useFeatureOcrScan'
@@ -257,10 +258,18 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
   const [secondRenterOpen, setSecondRenterOpen] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  const { user } = useAuth()
   const { data: resources = [] } = useResources()
   const createContract = useCreateContract()
   const updateContract = useUpdateContract()
   const ocrEnabled = useFeatureOcrScan()
+
+  const ocrConsentLog = useRef<Array<{ profile_id: string; scanned_at: string; document_type: string; fields_extracted: string[] }>>([])
+
+  // Reset consent log when dialog opens
+  useEffect(() => {
+    if (open) ocrConsentLog.current = []
+  }, [open])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -268,14 +277,23 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
   })
   const { register, handleSubmit, reset, watch, control, setValue, formState: { errors, isSubmitting } } = form
 
-  function handleScanResult(data: ScannedLicenseData) {
-    if (data.first_name) setValue('first_name', data.first_name)
-    if (data.last_name) setValue('last_name', data.last_name)
-    if (data.date_of_birth) setValue('date_of_birth', data.date_of_birth)
-    if (data.license_number) setValue('license_number', data.license_number)
-    if (data.license_class) setValue('license_class', data.license_class)
-    if (data.street) setValue('street', data.street)
-    if (data.city) setValue('city', data.city)
+  function handleScanResult(data: ScannedLicenseData, mode: 'license_front' | 'id_back') {
+    const extracted: string[] = []
+    if (data.first_name) { setValue('first_name', data.first_name); extracted.push('first_name') }
+    if (data.last_name) { setValue('last_name', data.last_name); extracted.push('last_name') }
+    if (data.date_of_birth) { setValue('date_of_birth', data.date_of_birth); extracted.push('date_of_birth') }
+    if (data.license_number) { setValue('license_number', data.license_number); extracted.push('license_number') }
+    if (data.license_class) { setValue('license_class', data.license_class); extracted.push('license_class') }
+    if (data.street) { setValue('street', data.street); extracted.push('street') }
+    if (data.city) { setValue('city', data.city); extracted.push('city') }
+    if (user && extracted.length > 0) {
+      ocrConsentLog.current.push({
+        profile_id: user.id,
+        scanned_at: new Date().toISOString(),
+        document_type: mode,
+        fields_extracted: extracted,
+      })
+    }
   }
 
   // Live watch for price summary
@@ -416,6 +434,7 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
         credit_card_last4: values.payment_method === 'card' ? (values.credit_card_last4 || null) : null,
         status: values.status,
         notes: values.notes || null,
+        ...(ocrConsentLog.current.length > 0 ? { ocr_consent_log: ocrConsentLog.current } : {}),
       }
 
       if (isEdit && contract) {

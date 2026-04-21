@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react'
-import { ScanLine, Loader2, AlertCircle, ShieldCheck } from 'lucide-react'
+import { ScanLine, Loader2, AlertCircle, ShieldCheck, Smartphone } from 'lucide-react'
+
+// Camera-only: on desktop (no touch) we block upload and show a hint
+const isMobileDevice = () => typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0
 import { supabase } from '@/lib/supabase'
 
 export interface ScannedLicenseData {
@@ -13,7 +16,7 @@ export interface ScannedLicenseData {
 }
 
 interface Props {
-  onResult: (data: ScannedLicenseData) => void
+  onResult: (data: ScannedLicenseData, mode: 'license_front' | 'id_back') => void
   disabled?: boolean
 }
 
@@ -50,7 +53,7 @@ interface ScanButtonProps {
   label: string
   mode: 'license_front' | 'id_back'
   consented: boolean
-  onResult: (data: ScannedLicenseData) => void
+  onResult: (data: ScannedLicenseData, mode: 'license_front' | 'id_back') => void
   disabled?: boolean
 }
 
@@ -58,13 +61,14 @@ function SingleScanButton({ label, mode, consented, onResult, disabled }: ScanBu
   const inputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isMobile = isMobileDevice()
 
   async function handleFile(file: File) {
     setError(null)
     setLoading(true)
     try {
       const parsed = await callOcrEdgeFunction(file, mode)
-      onResult(parsed)
+      onResult(parsed, mode)
       if (Object.values(parsed).filter(Boolean).length === 0)
         setError('Keine Felder erkannt — bitte manuell prüfen.')
     } catch (e) {
@@ -73,6 +77,15 @@ function SingleScanButton({ label, mode, consented, onResult, disabled }: ScanBu
       setLoading(false)
       if (inputRef.current) inputRef.current.value = ''
     }
+  }
+
+  if (!isMobile) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Smartphone className="w-3.5 h-3.5 shrink-0" />
+        {label} — nur auf mobilem Gerät verfügbar
+      </div>
+    )
   }
 
   return (
