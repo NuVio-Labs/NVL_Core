@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Plus, Car, CalendarDays, Users, AlertTriangle, ChevronRight, MapPin, CheckCircle2, X, FileText } from 'lucide-react'
 import { Link } from 'react-router'
 import { useAuth } from '@/features/auth'
-import { useWorkspace } from '@/features/workspace'
+import { useWorkspace, useCan } from '@/features/workspace'
 import { useBookingsForRange } from '@/features/bookings/hooks/useBookings'
 import { useResources, useUpdateResource } from '@/features/resources/hooks/useResources'
 import { useStaffMembers } from '@/features/staff/hooks/useStaff'
@@ -200,11 +200,12 @@ function HuRow({ resource }: { resource: Resource }) {
 
 export function DashboardPage() {
   const { profile } = useAuth()
-  const { activeCompany, activeRole, activeMembership } = useWorkspace()
+  const { activeCompany, activeMembership } = useWorkspace()
+  const can = useCan()
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [bookingPeriod, setBookingPeriod] = useState<'today' | 'week' | 'month'>('today')
 
-  const isAdmin = activeRole === 'admin'
+  const isAdmin = can('company.settings', 'read')
 
   const now = new Date()
   const todayStart = startOfDay(now)
@@ -221,7 +222,7 @@ export function DashboardPage() {
   const { data: staffMembers = [] } = useStaffMembers()
   const { data: contracts = [] } = useContracts()
 
-  const canManage = isAdmin
+  const canManage = can('bookings', 'create')
 
   // Fleet status
   const fleetStatus = useMemo(() => {

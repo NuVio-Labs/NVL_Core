@@ -8,52 +8,11 @@ export type Json =
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-  public: {
-    Tables: {
-      booking_field_definitions: {
-        Row: {
-          company_id: string
-          created_at: string
-          field_type: Database["public"]["Enums"]["resource_field_type"]
-          id: string
-          is_required: boolean
-          label: string
-          name: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
+  // instead of failed to connect as temp role: failed to connect to `host=aws-1-eu-central-1.pooler.supabase.com user=cli_login_postgres.rxllsbnkusuyndwpnoav database=postgres`: server error (FATAL: Authentication error, reason: "Unsupported or invalid secret format", context: Handshake (SQLSTATE XX000))
+Retry (3/8): failed to connect as temp role: failed to connect to `host=aws-1-eu-central-1.pooler.supabase.com user=cli_login_postgres.rxllsbnkusuyndwpnoav database=postgres`: server error (FATAL: Authentication error, reason: "Unsupported or invalid secret format", context: Handshake (SQLSTATE XX000))
+Retry (4/8): failed to connect as temp role: failed to connect to `host=aws-1-eu-central-1.pooler.supabase.com user=cli_login_postgres.rxllsbnkusuyndwpnoav database=postgres`: server error (FATAL: Authentication error, reason: "Unsupported or invalid secret format", context: Handshake (SQLSTATE XX000))
+Connect to your database by setting the env var correctly: SUPABASE_DB_PASSWORD
+_at?: string
           field_type?: Database["public"]["Enums"]["resource_field_type"]
           id?: string
           is_required?: boolean

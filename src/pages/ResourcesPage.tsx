@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2, CircleCheck, CircleOff, ChevronUp, ChevronDown, ChevronsUpDown, Search, X, Package } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
-import { useWorkspace } from '@/features/workspace'
+import { useCan } from '@/features/workspace'
 import {
   useResources,
   useCreateResource,
@@ -13,7 +13,6 @@ import { ResourceDialog } from '@/features/resources/components/ResourceDialog'
 import { cn } from '@/lib/utils'
 import type { Resource } from '@/features/resources/types'
 
-const CAN_MANAGE: string[] = ['admin', 'editor']
 
 const PREIS_GRUPPE_LABELS: Record<string, string> = {
   A_PKW: 'PKW A', B_PKW: 'PKW B', C_PKW: 'PKW C', D_PKW: 'PKW D', E_PKW: 'PKW E',
@@ -113,8 +112,8 @@ function StandortCell({ resource, onSave }: { resource: Resource; onSave: (id: s
 }
 
 export function ResourcesPage() {
-  const { activeRole } = useWorkspace()
-  const canManage = !!activeRole && CAN_MANAGE.includes(activeRole)
+  const can = useCan()
+  const canManage = can('resources.data', 'update')
 
   const { data: resources = [], isLoading } = useResources()
   const { data: definitions = [] } = useFieldDefinitions()

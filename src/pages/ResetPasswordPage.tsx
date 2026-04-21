@@ -1,24 +1,31 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { useAuth } from '@/features/auth'
+import { useNavigate } from 'react-router'
+import { authService } from '@/features/auth/service/authService'
 
-export function LoginPage() {
-  const { signIn } = useAuth()
+export function ResetPasswordPage() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    if (password.length < 8) {
+      setError('Passwort muss mindestens 8 Zeichen lang sein.')
+      return
+    }
+    if (password !== confirm) {
+      setError('Passwörter stimmen nicht überein.')
+      return
+    }
     setIsLoading(true)
     try {
-      await signIn(email, password)
+      await authService.updatePassword(password)
       navigate('/', { replace: true })
     } catch {
-      setError('E-Mail oder Passwort ungültig.')
+      setError('Fehler beim Speichern. Der Link ist möglicherweise abgelaufen.')
     } finally {
       setIsLoading(false)
     }
@@ -28,38 +35,33 @@ export function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-sm space-y-6 p-8 border border-border rounded-lg bg-background shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">NuVio Core</h1>
-          <p className="text-muted-foreground text-sm mt-1">Melde dich an</p>
+          <h1 className="text-2xl font-bold tracking-tight">Neues Passwort</h1>
+          <p className="text-muted-foreground text-sm mt-1">Gib dein neues Passwort ein.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium" htmlFor="email">E-Mail</label>
+            <label className="text-sm font-medium" htmlFor="password">Neues Passwort</label>
             <input
-              id="email"
-              type="email"
-              autoComplete="email"
+              id="password"
+              type="password"
+              autoComplete="new-password"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium" htmlFor="password">Passwort</label>
-              <Link to="/forgot-password" className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                Passwort vergessen?
-              </Link>
-            </div>
+            <label className="text-sm font-medium" htmlFor="confirm">Passwort wiederholen</label>
             <input
-              id="password"
+              id="confirm"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -71,16 +73,9 @@ export function LoginPage() {
             disabled={isLoading}
             className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            {isLoading ? 'Anmelden…' : 'Anmelden'}
+            {isLoading ? 'Speichern…' : 'Passwort speichern'}
           </button>
         </form>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Noch kein Konto?{' '}
-          <Link to="/signup" className="underline underline-offset-4 text-foreground">
-            Registrieren
-          </Link>
-        </p>
       </div>
     </div>
   )

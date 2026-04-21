@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, CircleCheck, CircleOff, ChevronRight, Settings2, Tag } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
-import { useWorkspace, useCompanySettings } from '@/features/workspace'
+import { useCompanySettings, useCan } from '@/features/workspace'
 import {
   usePriceLists,
   useCreatePriceList,
@@ -26,8 +26,6 @@ function formatMetaValue(value: unknown, type: string): string {
   if (type === 'boolean') return value ? 'Ja' : 'Nein'
   return String(value)
 }
-
-const CAN_MANAGE: string[] = ['admin']
 
 function formatPrice(value: number): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)
@@ -186,8 +184,8 @@ function ItemsPanel({
 }
 
 export function PricingPage() {
-  const { activeRole } = useWorkspace()
-  const canManage = !!activeRole && CAN_MANAGE.includes(activeRole)
+  const can = useCan()
+  const canManage = can('pricing', 'update')
 
   const { data: priceLists = [], isLoading } = usePriceLists()
   const createPriceList = useCreatePriceList()

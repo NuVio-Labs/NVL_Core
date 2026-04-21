@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pencil, Trash2, UserCog, UserPlus } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
-import { useWorkspace } from '@/features/workspace'
+import { useCan } from '@/features/workspace'
 import { useStaffMembers, useDeleteStaffMember } from '@/features/staff/hooks/useStaff'
 import { StaffDialog } from '@/features/staff/components/StaffDialog'
 import { StaffInviteDialog } from '@/features/staff/components/StaffInviteDialog'
@@ -26,14 +26,14 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function StaffPage() {
-  const { activeRole } = useWorkspace()
+  const can = useCan()
   const { data: members = [], isLoading } = useStaffMembers()
   const deleteMember = useDeleteStaffMember()
 
   const [editingMember, setEditingMember] = useState<StaffMembership | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
 
-  const canManage = activeRole === 'admin'
+  const canManage = can('users', 'manage_roles')
 
   function handleDelete(member: StaffMembership) {
     if (!confirm(`${member.profile.full_name ?? member.profile.email} wirklich entfernen?`)) return

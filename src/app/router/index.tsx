@@ -24,6 +24,14 @@ const router = createBrowserRouter([
         lazy: () => import('@/pages/OnboardingPage').then((m) => ({ Component: m.OnboardingPage })),
       },
       {
+        path: 'forgot-password',
+        lazy: () => import('@/pages/ForgotPasswordPage').then((m) => ({ Component: m.ForgotPasswordPage })),
+      },
+      {
+        path: 'reset-password',
+        lazy: () => import('@/pages/ResetPasswordPage').then((m) => ({ Component: m.ResetPasswordPage })),
+      },
+      {
         path: 'datenschutz',
         lazy: () => import('@/pages/DatenschutzPage').then((m) => ({ Component: m.DatenschutzPage })),
       },

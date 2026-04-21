@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Plus, FileText, Search, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Printer } from 'lucide-react'
-import { useWorkspace } from '@/features/workspace'
+import { useCan } from '@/features/workspace'
 import { useContracts, useCancelContract } from '@/features/contracts'
 import type { ContractWithDetails } from '@/features/contracts'
 import { ContractDialog } from '@/features/contracts/components/ContractDialog'
@@ -49,8 +49,8 @@ function SortIcon({ col, sort }: { col: string; sort: { key: string; dir: SortDi
 }
 
 export function ContractsPage() {
-  const { activeRole } = useWorkspace()
-  const canManage = activeRole === 'admin' || activeRole === 'editor'
+  const can = useCan()
+  const canManage = can('contracts', 'update')
 
   const { data: contracts = [], isLoading } = useContracts()
   const cancelContract = useCancelContract()

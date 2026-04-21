@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { UserPlus, Pencil, Trash2, Users } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
-import { useWorkspace } from '@/features/workspace'
+import { useCan } from '@/features/workspace'
 import { useCustomers, useDeleteCustomer } from '@/features/customers'
 import { CustomerDialog } from '@/features/customers/components/CustomerDialog'
 import type { Customer } from '@/features/customers'
 
 export function CustomersPage() {
-  const { activeRole } = useWorkspace()
+  const can = useCan()
   const { data: customers = [], isLoading } = useCustomers()
   const deleteCustomer = useDeleteCustomer()
 
@@ -15,8 +15,8 @@ export function CustomersPage() {
   const [editing, setEditing] = useState<Customer | null>(null)
   const [search, setSearch] = useState('')
 
-  const canManage = activeRole === 'admin' || activeRole === 'editor'
-  const canDelete = activeRole === 'admin'
+  const canManage = can('customers', 'update')
+  const canDelete = can('customers', 'delete')
 
   const filtered = customers.filter((c) => {
     const q = search.toLowerCase()

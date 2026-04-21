@@ -385,6 +385,7 @@ function ProfilePasswordForm() {
 
 export function SettingsPage() {
   const { activeRole } = useWorkspace()
+  const can = useCan()
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('profil')
   const companySettings = useCompanySettings()
@@ -451,7 +452,7 @@ export function SettingsPage() {
     return defaultAllowed ? 'default-granted' : 'default-denied'
   }
 
-  const canManageCompany = activeRole === 'admin'
+  const canManageCompany = can('company.settings', 'update')
   const visibleTabs = TABS.filter((t) => t.id === 'profil' || canManageCompany)
 
   // Ressourcenfelder handlers
