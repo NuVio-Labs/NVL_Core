@@ -330,3 +330,118 @@ export async function generateContractPdf(
 
   return doc.save()
 }
+
+// ─── Invoice PDF ─────────────────────────────────────────────────────────────
+
+export async function generateInvoicePdf(contract: ContractWithDetails, companyName: string): Promise<Uint8Array> {
+  const doc = await PDFDocument.create()
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  const regular = await doc.embedFont(StandardFonts.Helvetica)
+  const page = doc.addPage([595, 842])
+  const { width, height } = page.getSize()
+
+  let y = height - 60
+
+  function text(str: string, x: number, yy: number, size = 10, font = regular, color = BLACK) {
+    page.drawText(str, { x, y: yy, size, font, color })
+  }
+
+  // Header
+  text(companyName, 40, y, 16, bold)
+  y -= 30
+
+  // Invoice title
+  text('RECHNUNG', 40, y, 14, bold)
+  text(`Vertrag #${String(contract.contract_number).padStart(4, '0')}`, 400, y, 11, regular, GRAY)
+  y -= 25
+
+  // Date
+  text(`Datum: ${fmtDate(new Date().toISOString())}`, 40, y, 10, regular, GRAY)
+  y -= 20
+
+  // Divider
+  page.drawLine({ start: { x: 40, y }, end: { x: width - 40, y }, thickness: 0.5, color: LIGHT })
+  y -= 20
+
+  // Renter
+  text('Rechnungsempfänger', 40, y, 9, bold, GRAY)
+  y -= 14
+  text(`${contract.first_name} ${contract.last_name}`, 40, y, 10, bold)
+  y -= 14
+  if (contract.street) { text(contract.street, 40, y, 10, regular); y -= 14 }
+  if (contract.city) { text(contract.city, 40, y, 10, regular); y -= 14 }
+  if (contract.phone) { text(`Tel: ${contract.phone}`, 40, y, 10, regular, GRAY); y -= 14 }
+  y -= 10
+
+  // Vehicle
+  text('Fahrzeug', 40, y, 9, bold, GRAY)
+  y -= 14
+  const meta = (contract.resource?.metadata ?? {}) as Record<string, unknown>
+  text(`${contract.resource?.name ?? '—'}${meta.kennzeichen ? ` (${meta.kennzeichen})` : ''}`, 40, y, 10, regular)
+  y -= 14
+  text(`Übergabe: ${fmtDateTime(contract.handover_at)}`, 40, y, 10, regular, GRAY)
+  y -= 14
+  text(`Rückgabe: ${fmtDateTime(contract.return_agreed_at)}`, 40, y, 10, regular, GRAY)
+  y -= 20
+
+  // Divider
+  page.drawLine({ start: { x: 40, y }, end: { x: width - 40, y }, thickness: 0.5, color: LIGHT })
+  y -= 20
+
+  // Positions header
+  page.drawRectangle({ x: 40, y: y - 4, width: width - 80, height: 18, color: LIGHT })
+  text('Leistung', 44, y, 9, bold)
+  text('Betrag', width - 100, y, 9, bold)
+  y -= 20
+
+  const lines: Array<[string, number | null]> = []
+  if (contract.price_base != null) lines.push(['Grundpreis', contract.price_base])
+  const extras = (contract.extras ?? {}) as ContractExtras
+  if (extras.vk_sb_reduction && extras.vk_sb_amount) lines.push(['VK-SB Reduzierung', extras.vk_sb_amount])
+  if (extras.km_package_100 && extras.km_package_100_amount) lines.push(['+100 km Paket', extras.km_package_100_amount])
+  if (extras.km_package_300 && extras.km_package_300_amount) lines.push(['+300 km Paket', extras.km_package_300_amount])
+  if (extras.km_package_500 && extras.km_package_500_amount) lines.push(['+500 km Paket', extras.km_package_500_amount])
+  if (extras.km_package_1000 && extras.km_package_1000_amount) lines.push(['+1000 km Paket', extras.km_package_1000_amount])
+  if (contract.advance_rent != null) lines.push(['Vorauszahlung Miete (abgezogen)', -(contract.advance_rent)])
+  if (contract.advance_deposit != null) lines.push(['Kaution', contract.advance_deposit])
+
+  let subtotal = 0
+  for (const [label, amount] of lines) {
+    text(label, 44, y, 10, regular)
+    text(fmt(amount), width - 100, y, 10, regular)
+    y -= 16
+    subtotal += amount ?? 0
+  }
+
+  y -= 8
+  page.drawLine({ start: { x: 40, y }, end: { x: width - 40, y }, thickness: 0.5, color: LIGHT })
+  y -= 16
+
+  const taxRate = contract.tax_rate ?? 19
+  const net = subtotal / (1 + taxRate / 100)
+  const tax = subtotal - net
+
+  text('Nettobetrag', 44, y, 10, regular, GRAY)
+  text(fmt(net), width - 100, y, 10, regular, GRAY)
+  y -= 16
+  text(`MwSt. ${taxRate}%`, 44, y, 10, regular, GRAY)
+  text(fmt(tax), width - 100, y, 10, regular, GRAY)
+  y -= 16
+
+  page.drawRectangle({ x: 40, y: y - 4, width: width - 80, height: 18, color: LIGHT })
+  text('Gesamtbetrag', 44, y, 11, bold)
+  text(fmt(subtotal), width - 100, y, 11, bold)
+  y -= 30
+
+  // Payment status
+  const statusLabel = contract.payment_status === 'paid' ? 'BEZAHLT' : contract.payment_status === 'partial' ? 'TEILZAHLUNG' : 'OFFEN'
+  text(`Zahlungsstatus: ${statusLabel}`, 40, y, 10, bold, contract.payment_status === 'paid' ? rgb(0, 0.5, 0) : rgb(0.8, 0.3, 0))
+  y -= 30
+
+  // Footer
+  page.drawLine({ start: { x: 40, y }, end: { x: width - 40, y }, thickness: 0.5, color: LIGHT })
+  y -= 14
+  text('Vielen Dank für Ihr Vertrauen.', 40, y, 9, regular, GRAY)
+
+  return doc.save()
+}

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, CircleCheck, CircleOff, ChevronUp, ChevronDown, ChevronsUpDown, Search, X, Package } from 'lucide-react'
+import { Plus, Pencil, Trash2, CircleCheck, CircleOff, ChevronUp, ChevronDown, ChevronsUpDown, Search, X, Package, Paperclip } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { useCan } from '@/features/workspace'
+import { FileManager } from '@/features/files/components/FileManager'
 import {
   useResources,
   useCreateResource,
@@ -123,6 +124,7 @@ export function ResourcesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Resource | undefined>()
+  const [filesFor, setFilesFor] = useState<Resource | null>(null)
   const [sort, setSort] = useState<{ key: string; dir: SortDir } | null>(null)
 
   // Suche + Filter
@@ -332,7 +334,7 @@ export function ResourcesPage() {
                   <SortTh key={def.id} label={def.label} col={def.name} sort={sort} onSort={handleSort} />
                 ))}
                 <SortTh label="Status" col="status" sort={sort} onSort={handleSort} className="w-28" />
-                {canManage && <th className="px-4 py-3 w-20" />}
+                <th className="px-4 py-3 w-28" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -377,29 +379,51 @@ export function ResourcesPage() {
                         </span>
                       )}
                     </td>
-                    {canManage && (
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 justify-end">
-                          <button
-                            onClick={() => openEdit(resource)}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(resource)}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    )}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          onClick={() => setFilesFor(filesFor?.id === resource.id ? null : resource)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Dokumente"
+                        >
+                          <Paperclip className="w-4 h-4" />
+                        </button>
+                        {canManage && (
+                          <>
+                            <button
+                              onClick={() => openEdit(resource)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(resource)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Dokumente-Panel */}
+      {filesFor && (
+        <div className="border border-border rounded-lg p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Dokumente: {filesFor.name}</h3>
+            <button onClick={() => setFilesFor(null)} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
+              Schließen
+            </button>
+          </div>
+          <FileManager entityType="resource" entityId={filesFor.id} readonly={!canManage} />
         </div>
       )}
 

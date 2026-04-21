@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
-import { Plus, FileText, Search, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Printer } from 'lucide-react'
-import { useCan } from '@/features/workspace'
+import { Plus, FileText, Search, X, ChevronUp, ChevronDown, ChevronsUpDown, CheckCircle, Printer, Receipt } from 'lucide-react'
+import { useCan, useWorkspace } from '@/features/workspace'
 import { useContracts, useCancelContract } from '@/features/contracts'
 import type { ContractWithDetails } from '@/features/contracts'
 import { ContractDialog } from '@/features/contracts/components/ContractDialog'
 import { CompleteModal } from '@/features/contracts/components/CompleteModal'
 import { PrintDialog } from '@/features/contracts/components/PrintDialog'
+import { generateInvoicePdf } from '@/features/contracts/service/contractPdfService'
 
 import { EmptyState } from '@/components/EmptyState'
 import { cn } from '@/lib/utils'
@@ -51,6 +52,7 @@ function SortIcon({ col, sort }: { col: string; sort: { key: string; dir: SortDi
 export function ContractsPage() {
   const can = useCan()
   const canManage = can('contracts', 'update')
+  const { activeCompany } = useWorkspace()
 
   const { data: contracts = [], isLoading } = useContracts()
   const cancelContract = useCancelContract()
@@ -106,6 +108,17 @@ export function ContractsPage() {
 
   function openCreate() { setEditing(undefined); setDialogOpen(true) }
   function openEdit(c: ContractWithDetails) { setEditing(c); setDialogOpen(true) }
+
+  async function handleInvoice(c: ContractWithDetails) {
+    const bytes = await generateInvoicePdf(c, activeCompany?.name ?? 'Unternehmen')
+    const blob = new Blob([bytes], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Rechnung_${String(c.contract_number).padStart(4, '0')}_${c.last_name}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   async function handleCancel(c: ContractWithDetails) {
     if (!confirm(`Vertrag #${c.contract_number} wirklich stornieren?`)) return
@@ -255,6 +268,13 @@ export function ContractsPage() {
                           >
                             <Printer className="w-3.5 h-3.5" />
                             Drucken
+                          </button>
+                          <button
+                            onClick={() => handleInvoice(c)}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Receipt className="w-3.5 h-3.5" />
+                            Rechnung
                           </button>
                           {c.status !== 'cancelled' && c.status !== 'completed' && (
                             <>

@@ -1,6 +1,10 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
-import { useWorkspace, useCompanySettings, useUpdateCompanySettings, usePermissionOverrides, useUpsertPermissionOverride, useRemovePermissionOverride } from '@/features/workspace'
+import { useState, useRef } from 'react'
+import { Plus, Pencil, Trash2, MapPin, Upload, Building2 } from 'lucide-react'
+import { useLocations, useCreateLocation, useUpdateLocation, useDeleteLocation } from '@/features/locations'
+import type { Location } from '@/features/locations'
+import { fileService } from '@/features/files/service/fileService'
+import { supabase } from '@/lib/supabase'
+import { useWorkspace, useCan, useCompanySettings, useUpdateCompanySettings, usePermissionOverrides, useUpsertPermissionOverride, useRemovePermissionOverride } from '@/features/workspace'
 import type { PermissionOverrideWithId } from '@/features/workspace/hooks/usePermissionOverrides'
 import { permissions } from '@/lib/permissions'
 import type { CompanyRole, Module, Action } from '@/lib/permissions'
@@ -37,11 +41,12 @@ import type { StaffFieldDefinition } from '@/features/staff/types'
 import { usePriceListItemFieldDefinitionsByCompany } from '@/features/pricing/hooks/usePriceListItemFieldDefinitions'
 import { useAuth } from '@/features/auth'
 
-type Tab = 'profil' | 'allgemein' | 'ressourcenfelder' | 'buchungsfelder' | 'mitarbeiterfelder' | 'dauer' | 'berechtigungen'
+type Tab = 'profil' | 'allgemein' | 'standorte' | 'ressourcenfelder' | 'buchungsfelder' | 'mitarbeiterfelder' | 'dauer' | 'berechtigungen'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'profil', label: 'Profil' },
   { id: 'allgemein', label: 'Allgemein' },
+  { id: 'standorte', label: 'Standorte' },
   { id: 'ressourcenfelder', label: 'Ressourcenfelder' },
   { id: 'buchungsfelder', label: 'Buchungsfelder' },
   { id: 'mitarbeiterfelder', label: 'Mitarbeiterfelder' },
@@ -383,6 +388,61 @@ function ProfilePasswordForm() {
   )
 }
 
+function CompanyLogoSection() {
+  const { activeCompanyId, activeCompany } = useWorkspace()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleFile(file: File | null) {
+    if (!file || !activeCompanyId) return
+    setUploading(true)
+    setError(null)
+    try {
+      const ext = file.name.split('.').pop() ?? 'png'
+      const path = `${activeCompanyId}/company/${activeCompanyId}/logo.${ext}`
+      await supabase.storage.from('company-files').upload(path, file, { upsert: true, contentType: file.type })
+      const url = await fileService.getSignedUrl(path, 3600 * 24 * 7)
+      setLogoUrl(url)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload fehlgeschlagen')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-base font-semibold">Mandanten-Logo</h2>
+        <p className="text-muted-foreground text-sm mt-0.5">Wird in Dokumenten und Berichten verwendet.</p>
+      </div>
+      <div className="border border-border rounded-lg p-4 flex items-center gap-5">
+        <div className="w-20 h-20 rounded-lg border border-border bg-muted flex items-center justify-center overflow-hidden shrink-0">
+          {logoUrl
+            ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+            : <Building2 className="w-8 h-8 text-muted-foreground" />}
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{activeCompany?.name}</p>
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
+          <button
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            {uploading ? 'Wird hochgeladen…' : 'Logo hochladen'}
+          </button>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <p className="text-xs text-muted-foreground">PNG, JPG, SVG · max. 2 MB</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function SettingsPage() {
   const { activeRole } = useWorkspace()
   const can = useCan()
@@ -394,6 +454,15 @@ export function SettingsPage() {
   // Profil
   const [profileName, setProfileName] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
+
+  // Standorte
+  const { data: locations = [] } = useLocations()
+  const createLocation = useCreateLocation()
+  const updateLocation = useUpdateLocation()
+  const deleteLocation = useDeleteLocation()
+  const [locName, setLocName] = useState('')
+  const [locAddress, setLocAddress] = useState('')
+  const [locEditing, setLocEditing] = useState<Location | null>(null)
 
   // Ressourcenfelder
   const [resDialogOpen, setResDialogOpen] = useState(false)
@@ -594,6 +663,9 @@ export function SettingsPage() {
       {activeTab === 'allgemein' && (
         <div className="space-y-8 max-w-lg">
 
+          {/* Mandanten-Logo */}
+          <CompanyLogoSection />
+
           {/* Buchungs-Feldzuordnung */}
           <div className="space-y-3">
             <div>
@@ -705,6 +777,104 @@ export function SettingsPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'standorte' && (
+        <div className="space-y-6 max-w-2xl">
+          <div>
+            <h2 className="text-base font-semibold">Standorte</h2>
+            <p className="text-muted-foreground text-sm mt-0.5">Verwaltung der Übergabe- und Abgabestandorte dieses Mandanten.</p>
+          </div>
+
+          {/* Neu anlegen / bearbeiten */}
+          {can('resources.data', 'update') && (
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <h3 className="text-sm font-medium">{locEditing ? 'Standort bearbeiten' : 'Neuer Standort'}</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Name *</label>
+                  <input
+                    value={locEditing ? locEditing.name : locName}
+                    onChange={(e) => locEditing ? setLocEditing({ ...locEditing, name: e.target.value }) : setLocName(e.target.value)}
+                    className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                    placeholder="z.B. Stuttgart Mitte"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Adresse</label>
+                  <input
+                    value={locEditing ? (locEditing.address ?? '') : locAddress}
+                    onChange={(e) => locEditing ? setLocEditing({ ...locEditing, address: e.target.value }) : setLocAddress(e.target.value)}
+                    className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                    placeholder="Straße, PLZ Ort"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (locEditing) {
+                      await updateLocation.mutateAsync({ id: locEditing.id, payload: { name: locEditing.name, address: locEditing.address } })
+                      setLocEditing(null)
+                    } else {
+                      if (!locName.trim()) return
+                      await createLocation.mutateAsync({ name: locName.trim(), address: locAddress || null, notes: null, is_active: true })
+                      setLocName('')
+                      setLocAddress('')
+                    }
+                  }}
+                  className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                >
+                  {locEditing ? 'Speichern' : 'Anlegen'}
+                </button>
+                {locEditing && (
+                  <button onClick={() => setLocEditing(null)} className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors">
+                    Abbrechen
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Liste */}
+          {locations.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
+              <MapPin className="w-8 h-8" />
+              <p className="text-sm">Noch keine Standorte angelegt.</p>
+            </div>
+          ) : (
+            <div className="border border-border rounded-lg overflow-hidden">
+              {locations.map((loc) => (
+                <div key={loc.id} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+                  <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{loc.name}</p>
+                    {loc.address && <p className="text-xs text-muted-foreground">{loc.address}</p>}
+                  </div>
+                  <span className={`text-xs font-medium ${loc.is_active ? 'text-green-700' : 'text-muted-foreground'}`}>
+                    {loc.is_active ? 'Aktiv' : 'Inaktiv'}
+                  </span>
+                  {can('resources.data', 'update') && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setLocEditing(loc)}
+                        className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Standort „${loc.name}" löschen?`)) deleteLocation.mutate(loc.id) }}
+                        className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

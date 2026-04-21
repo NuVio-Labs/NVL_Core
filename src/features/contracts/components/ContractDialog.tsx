@@ -13,6 +13,7 @@ import { CompleteModal } from './CompleteModal'
 import { PrintDialog } from './PrintDialog'
 import { LicenseScanButton } from './LicenseScanButton'
 import { ContractAuditLog } from './ContractAuditLog'
+import { FileManager } from '@/features/files/components/FileManager'
 import type { ScannedLicenseData } from './LicenseScanButton'
 import type { ContractWithDetails, ContractExtras, ContractSecondRenter } from '../types'
 import type { BookingWithCreator } from '@/features/bookings/types'
@@ -809,6 +810,18 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
 
           </div>
         </form>
+
+        {/* Anhänge */}
+        {isEdit && contract?.id && (
+          <details className="px-6 py-3 border-t border-border shrink-0">
+            <summary className="text-xs font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors">
+              Anhänge &amp; Dokumente
+            </summary>
+            <div className="mt-3">
+              <FileManager entityType="contract" entityId={contract.id} readonly={isLocked} />
+            </div>
+          </details>
+        )}
 
         {/* Verlauf */}
         {isEdit && contract?.id && (
