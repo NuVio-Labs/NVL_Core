@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ScanLine, Loader2, AlertCircle, ShieldCheck, Smartphone } from 'lucide-react'
+import { ScanLine, Loader2, AlertCircle, ShieldCheck } from 'lucide-react'
 
 // Camera-only: on desktop (no touch) we block upload and show a hint
 const isMobileDevice = () => typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0
@@ -79,22 +79,13 @@ function SingleScanButton({ label, mode, consented, onResult, disabled }: ScanBu
     }
   }
 
-  if (!isMobile) {
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Smartphone className="w-3.5 h-3.5 shrink-0" />
-        {label} — nur auf mobilem Gerät verfügbar
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-1">
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        {...(isMobile ? { capture: 'environment' } : {})}
         className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
       />

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       booking_field_definitions: {
@@ -58,206 +83,12 @@ export type Database = {
           },
         ]
       }
-      contracts: {
-        Row: {
-          id: string
-          company_id: string
-          booking_id: string | null
-          resource_id: string | null
-          contract_number: number
-          first_name: string
-          last_name: string
-          phone: string | null
-          street: string | null
-          city: string | null
-          profession: string | null
-          employer: string | null
-          id_number: string | null
-          id_issued_at: string | null
-          date_of_birth: string | null
-          place_of_birth: string | null
-          license_class: string | null
-          license_number: string | null
-          license_issued_in: string | null
-          license_issued_at: string | null
-          second_renter: Json | null
-          handover_at: string | null
-          handover_location: string | null
-          return_agreed_at: string | null
-          return_actual_at: string | null
-          return_location: string | null
-          extended_until: string | null
-          km_start: number | null
-          km_end: number | null
-          km_free: number | null
-          price_per_km: number | null
-          price_per_day: number | null
-          price_base: number | null
-          tax_rate: number | null
-          extras: Json
-          loading_gate: boolean | null
-          tachograph: boolean | null
-          tank_full: boolean | null
-          damage: boolean | null
-          damage_notes: string | null
-          tank_return_full: boolean | null
-          returned_by: string | null
-          advance_rent: number | null
-          advance_deposit: number | null
-          payment_status: string
-          payment_method: string | null
-          credit_card_last4: string | null
-          notes: string | null
-          ocr_consent_log: Json | null
-          pdf_url: string | null
-          price_override: number | null
-          price_override_reason: string | null
-          price_override_by: string | null
-          price_override_at: string | null
-          is_locked: boolean
-          archived_at: string | null
-          retention_category: string | null
-          retention_delete_after: string | null
-          status: string
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          company_id: string
-          booking_id?: string | null
-          resource_id?: string | null
-          contract_number: number
-          first_name: string
-          last_name: string
-          phone?: string | null
-          street?: string | null
-          city?: string | null
-          profession?: string | null
-          employer?: string | null
-          id_number?: string | null
-          id_issued_at?: string | null
-          date_of_birth?: string | null
-          place_of_birth?: string | null
-          license_class?: string | null
-          license_number?: string | null
-          license_issued_in?: string | null
-          license_issued_at?: string | null
-          second_renter?: Json | null
-          handover_at?: string | null
-          handover_location?: string | null
-          return_agreed_at?: string | null
-          return_actual_at?: string | null
-          return_location?: string | null
-          extended_until?: string | null
-          km_start?: number | null
-          km_end?: number | null
-          km_free?: number | null
-          price_per_km?: number | null
-          price_per_day?: number | null
-          price_base?: number | null
-          tax_rate?: number | null
-          extras?: Json
-          loading_gate?: boolean | null
-          tachograph?: boolean | null
-          tank_full?: boolean | null
-          damage?: boolean | null
-          damage_notes?: string | null
-          tank_return_full?: boolean | null
-          returned_by?: string | null
-          advance_rent?: number | null
-          advance_deposit?: number | null
-          payment_status?: string
-          payment_method?: string | null
-          credit_card_last4?: string | null
-          notes?: string | null
-          ocr_consent_log?: Json | null
-          pdf_url?: string | null
-          price_override?: number | null
-          price_override_reason?: string | null
-          price_override_by?: string | null
-          price_override_at?: string | null
-          is_locked?: boolean
-          archived_at?: string | null
-          retention_category?: string | null
-          retention_delete_after?: string | null
-          status?: string
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          company_id?: string
-          booking_id?: string | null
-          resource_id?: string | null
-          contract_number?: number
-          first_name?: string
-          last_name?: string
-          phone?: string | null
-          street?: string | null
-          city?: string | null
-          profession?: string | null
-          employer?: string | null
-          id_number?: string | null
-          id_issued_at?: string | null
-          date_of_birth?: string | null
-          place_of_birth?: string | null
-          license_class?: string | null
-          license_number?: string | null
-          license_issued_in?: string | null
-          license_issued_at?: string | null
-          second_renter?: Json | null
-          handover_at?: string | null
-          handover_location?: string | null
-          return_agreed_at?: string | null
-          return_actual_at?: string | null
-          return_location?: string | null
-          extended_until?: string | null
-          km_start?: number | null
-          km_end?: number | null
-          km_free?: number | null
-          price_per_km?: number | null
-          price_per_day?: number | null
-          price_base?: number | null
-          tax_rate?: number | null
-          extras?: Json
-          loading_gate?: boolean | null
-          tachograph?: boolean | null
-          tank_full?: boolean | null
-          damage?: boolean | null
-          damage_notes?: string | null
-          tank_return_full?: boolean | null
-          returned_by?: string | null
-          advance_rent?: number | null
-          advance_deposit?: number | null
-          payment_status?: string
-          payment_method?: string | null
-          credit_card_last4?: string | null
-          notes?: string | null
-          ocr_consent_log?: Json | null
-          pdf_url?: string | null
-          price_override?: number | null
-          price_override_reason?: string | null
-          price_override_by?: string | null
-          price_override_at?: string | null
-          is_locked?: boolean
-          archived_at?: string | null
-          retention_category?: string | null
-          retention_delete_after?: string | null
-          status?: string
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       bookings: {
         Row: {
           company_id: string
           created_at: string
           created_by: string | null
+          customer_id: string | null
           duration_field: string | null
           ends_at: string
           first_name: string
@@ -278,6 +109,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           duration_field?: string | null
           ends_at: string
           first_name: string
@@ -298,6 +130,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          customer_id?: string | null
           duration_field?: string | null
           ends_at?: string
           first_name?: string
@@ -323,10 +156,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "bookings_resource_id_fkey"
-            columns: ["resource_id"]
+            foreignKeyName: "bookings_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "resources"
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
@@ -341,6 +181,334 @@ export type Database = {
             columns: ["price_list_item_id"]
             isOneToOne: false
             referencedRelation: "price_list_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          settings: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          settings?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          settings?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          advance_deposit: number | null
+          advance_rent: number | null
+          archived_at: string | null
+          booking_id: string | null
+          city: string | null
+          company_id: string
+          contract_number: number
+          created_at: string
+          created_by: string | null
+          credit_card_last4: string | null
+          customer_id: string | null
+          damage: boolean | null
+          damage_notes: string | null
+          date_of_birth: string | null
+          employer: string | null
+          extended_until: string | null
+          extras: Json
+          first_name: string
+          handover_at: string | null
+          handover_location: string | null
+          id: string
+          id_issued_at: string | null
+          id_number: string | null
+          is_locked: boolean
+          km_end: number | null
+          km_free: number | null
+          km_start: number | null
+          last_name: string
+          license_class: string | null
+          license_issued_at: string | null
+          license_issued_in: string | null
+          license_number: string | null
+          loading_gate: boolean | null
+          notes: string | null
+          ocr_consent_log: Json | null
+          payment_method: string | null
+          payment_status: string
+          pdf_url: string | null
+          phone: string | null
+          place_of_birth: string | null
+          price_base: number | null
+          price_override: number | null
+          price_override_at: string | null
+          price_override_by: string | null
+          price_override_reason: string | null
+          price_per_day: number | null
+          price_per_km: number | null
+          profession: string | null
+          resource_id: string | null
+          retention_category: string | null
+          retention_delete_after: string | null
+          return_actual_at: string | null
+          return_agreed_at: string | null
+          return_location: string | null
+          returned_by: string | null
+          second_renter: Json | null
+          status: string
+          street: string | null
+          tachograph: boolean | null
+          tank_full: boolean | null
+          tank_return_full: boolean | null
+          tax_rate: number | null
+          updated_at: string
+        }
+        Insert: {
+          advance_deposit?: number | null
+          advance_rent?: number | null
+          archived_at?: string | null
+          booking_id?: string | null
+          city?: string | null
+          company_id: string
+          contract_number: number
+          created_at?: string
+          created_by?: string | null
+          credit_card_last4?: string | null
+          customer_id?: string | null
+          damage?: boolean | null
+          damage_notes?: string | null
+          date_of_birth?: string | null
+          employer?: string | null
+          extended_until?: string | null
+          extras?: Json
+          first_name: string
+          handover_at?: string | null
+          handover_location?: string | null
+          id?: string
+          id_issued_at?: string | null
+          id_number?: string | null
+          is_locked?: boolean
+          km_end?: number | null
+          km_free?: number | null
+          km_start?: number | null
+          last_name: string
+          license_class?: string | null
+          license_issued_at?: string | null
+          license_issued_in?: string | null
+          license_number?: string | null
+          loading_gate?: boolean | null
+          notes?: string | null
+          ocr_consent_log?: Json | null
+          payment_method?: string | null
+          payment_status?: string
+          pdf_url?: string | null
+          phone?: string | null
+          place_of_birth?: string | null
+          price_base?: number | null
+          price_override?: number | null
+          price_override_at?: string | null
+          price_override_by?: string | null
+          price_override_reason?: string | null
+          price_per_day?: number | null
+          price_per_km?: number | null
+          profession?: string | null
+          resource_id?: string | null
+          retention_category?: string | null
+          retention_delete_after?: string | null
+          return_actual_at?: string | null
+          return_agreed_at?: string | null
+          return_location?: string | null
+          returned_by?: string | null
+          second_renter?: Json | null
+          status?: string
+          street?: string | null
+          tachograph?: boolean | null
+          tank_full?: boolean | null
+          tank_return_full?: boolean | null
+          tax_rate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          advance_deposit?: number | null
+          advance_rent?: number | null
+          archived_at?: string | null
+          booking_id?: string | null
+          city?: string | null
+          company_id?: string
+          contract_number?: number
+          created_at?: string
+          created_by?: string | null
+          credit_card_last4?: string | null
+          customer_id?: string | null
+          damage?: boolean | null
+          damage_notes?: string | null
+          date_of_birth?: string | null
+          employer?: string | null
+          extended_until?: string | null
+          extras?: Json
+          first_name?: string
+          handover_at?: string | null
+          handover_location?: string | null
+          id?: string
+          id_issued_at?: string | null
+          id_number?: string | null
+          is_locked?: boolean
+          km_end?: number | null
+          km_free?: number | null
+          km_start?: number | null
+          last_name?: string
+          license_class?: string | null
+          license_issued_at?: string | null
+          license_issued_in?: string | null
+          license_number?: string | null
+          loading_gate?: boolean | null
+          notes?: string | null
+          ocr_consent_log?: Json | null
+          payment_method?: string | null
+          payment_status?: string
+          pdf_url?: string | null
+          phone?: string | null
+          place_of_birth?: string | null
+          price_base?: number | null
+          price_override?: number | null
+          price_override_at?: string | null
+          price_override_by?: string | null
+          price_override_reason?: string | null
+          price_per_day?: number | null
+          price_per_km?: number | null
+          profession?: string | null
+          resource_id?: string | null
+          retention_category?: string | null
+          retention_delete_after?: string | null
+          return_actual_at?: string | null
+          return_agreed_at?: string | null
+          return_location?: string | null
+          returned_by?: string | null
+          second_renter?: Json | null
+          status?: string
+          street?: string | null
+          tachograph?: boolean | null
+          tank_full?: boolean | null
+          tank_return_full?: boolean | null
+          tax_rate?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_price_override_by_fkey"
+            columns: ["price_override_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          city: string | null
+          company_id: string
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          street: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          company_id: string
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -382,36 +550,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      companies: {
-        Row: {
-          created_at: string
-          id: string
-          logo_url: string | null
-          name: string
-          settings: Json
-          slug: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          logo_url?: string | null
-          name: string
-          settings?: Json
-          slug: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          logo_url?: string | null
-          name?: string
-          settings?: Json
-          slug?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       memberships: {
         Row: {
@@ -467,37 +605,37 @@ export type Database = {
       price_list_item_field_definitions: {
         Row: {
           company_id: string
-          price_list_id: string | null
           created_at: string
           field_type: Database["public"]["Enums"]["resource_field_type"]
           id: string
           is_required: boolean
           label: string
           name: string
+          price_list_id: string | null
           sort_order: number
           updated_at: string
         }
         Insert: {
           company_id: string
-          price_list_id?: string | null
           created_at?: string
           field_type?: Database["public"]["Enums"]["resource_field_type"]
           id?: string
           is_required?: boolean
           label: string
           name: string
+          price_list_id?: string | null
           sort_order?: number
           updated_at?: string
         }
         Update: {
           company_id?: string
-          price_list_id?: string | null
           created_at?: string
           field_type?: Database["public"]["Enums"]["resource_field_type"]
           id?: string
           is_required?: boolean
           label?: string
           name?: string
+          price_list_id?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -604,7 +742,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
-          platform_role: 'owner' | null
+          platform_role: string | null
           updated_at: string
         }
         Insert: {
@@ -613,7 +751,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
-          platform_role?: 'owner' | null
+          platform_role?: string | null
           updated_at?: string
         }
         Update: {
@@ -622,54 +760,10 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
-          platform_role?: 'owner' | null
+          platform_role?: string | null
           updated_at?: string
         }
         Relationships: []
-      }
-      staff_field_definitions: {
-        Row: {
-          company_id: string
-          created_at: string
-          field_type: Database["public"]["Enums"]["resource_field_type"]
-          id: string
-          is_required: boolean
-          label: string
-          name: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          field_type?: Database["public"]["Enums"]["resource_field_type"]
-          id?: string
-          is_required?: boolean
-          label: string
-          name: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          field_type?: Database["public"]["Enums"]["resource_field_type"]
-          id?: string
-          is_required?: boolean
-          label?: string
-          name?: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "staff_field_definitions_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       resource_field_definitions: {
         Row: {
@@ -766,15 +860,67 @@ export type Database = {
           },
         ]
       }
+      staff_field_definitions: {
+        Row: {
+          company_id: string
+          created_at: string
+          field_type: Database["public"]["Enums"]["resource_field_type"]
+          id: string
+          is_required: boolean
+          label: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          field_type?: Database["public"]["Enums"]["resource_field_type"]
+          id?: string
+          is_required?: boolean
+          label: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          field_type?: Database["public"]["Enums"]["resource_field_type"]
+          id?: string
+          is_required?: boolean
+          label?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_field_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_my_role: { Args: { p_company_id: string }; Returns: string }
+      is_platform_owner: { Args: never; Returns: boolean }
+      next_contract_number: { Args: { p_company_id: string }; Returns: number }
     }
     Enums: {
-      membership_role: "admin" | "editor" | "user"
+      membership_role:
+        | "owner"
+        | "admin"
+        | "member"
+        | "viewer"
+        | "editor"
+        | "user"
       membership_status: "active" | "invited" | "suspended"
       resource_field_type: "text" | "number" | "boolean" | "date"
     }
@@ -902,9 +1048,12 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
-      membership_role: ["admin", "editor", "user"],
+      membership_role: ["owner", "admin", "member", "viewer", "editor", "user"],
       membership_status: ["active", "invited", "suspended"],
       resource_field_type: ["text", "number", "boolean", "date"],
     },
