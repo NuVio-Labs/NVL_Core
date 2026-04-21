@@ -3,7 +3,7 @@
 
 **Verantwortlicher:** NuVioLabs, Axel Schurer, Nimwegerstraße 3, 47559 Kranenburg  
 **Kontakt:** contact@nuviolabs.de  
-**Letzte Aktualisierung:** 2026-04-19  
+**Letzte Aktualisierung:** 2026-04-20  
 **Status:** Entwurf — zur Prüfung durch Datenschutzberater  
 
 > Dieses Verzeichnis muss nicht bei einer Behörde eingereicht werden, aber auf Anfrage der Aufsichtsbehörde (LDI NRW) vorgelegt werden können (Art. 30 Abs. 4 DSGVO).
@@ -71,19 +71,20 @@
 
 ---
 
-## VT-005 — OCR-gestützte Dokumentenerfassung (geplant, noch nicht produktiv)
+## VT-005 — KI-gestützte Dokumentenerfassung (✅ produktiv, PLT-Feature)
 
 | Feld | Inhalt |
 |---|---|
-| **Zweck** | Automatisierte Extraktion von Mieterdaten aus Lichtbildausweisen zur Vereinfachung der Vertragsanlage |
-| **Rechtsgrundlage** | Art. 6 Abs. 1 lit. b (Vertragserfüllung) + Einwilligung (PAuswG) |
+| **Zweck** | Automatisierte Extraktion von Mieterdaten aus Führerschein (Vorderseite) und Personalausweis (Rückseite) zur Vereinfachung der Vertragsanlage |
+| **Rechtsgrundlage** | Art. 6 Abs. 1 lit. b (Vertragserfüllung) + Art. 6 Abs. 1 lit. a (Einwilligung, Pflicht-Checkbox vor Scan) |
 | **Betroffene Personen** | Mieter die dem Scan zugestimmt haben |
-| **Datenkategorien** | Ausweisbild (ephemer, nie gespeichert), extrahierte Vertragsfelder (→ VT-004), Consent Log |
-| **Auftragsverarbeiter** | OpenAI Ireland Ltd. (Vision API), Supabase Inc. |
+| **Datenkategorien** | Ausweisbild / Führerscheinbild (ephemer, nie gespeichert), extrahierte Vertragsfelder: Name, Adresse, Geburtsdatum, FS-Klasse, FS-Nr. (→ VT-004) |
+| **Auftragsverarbeiter** | OpenAI Ireland Ltd. (GPT-4o Vision API), Supabase Inc. (Edge Function Hosting) |
 | **Drittlandübermittlung** | USA (OpenAI) — SCCs im DPA vom 2026-04-19; USA (Supabase) — SCCs |
-| **Löschfrist** | Ausweisbild: sofort nach API-Response; Consent Log: wie Vertrag (VT-004) |
-| **TOMs** | Bilder nur ephemer im RAM, sofortige Löschung nach API-Response, API call logging Disabled bei OpenAI, Seriennummer-Filter im Backend, Pflicht-Einwilligungs-Checkbox, Rollenbeschränkung (nur Editor/Admin/Owner) |
-| **DSFA** | Erstellt (DSFA-NVL-001), Prüfung durch DSB ausstehend |
+| **Löschfrist** | Bilder: sofort nach GPT-Response; extrahierte Felder: wie Vertrag (VT-004) |
+| **TOMs** | Bilder nur als Base64 im RAM der Edge Function; nie in DB/Storage; API call logging Disabled bei OpenAI; Zero Data Retention; PA-Seriennummer technisch nicht extrahiert (GPT-Prompt); Pflicht-Consent-Checkbox; Feature nur per company_settings.feature_ocr_scan aktivierbar; nur Editor/Admin/Owner-Rollen |
+| **DSFA** | DSFA-NVL-001 v2.0 erstellt (2026-04-20), Prüfung durch DSB ausstehend |
+| **Aktiviert für** | PLT Autovermietung (Testkunde) |
 
 ---
 
@@ -134,15 +135,18 @@
 - **Mandantenisolierung:** company_id-Filterung auf allen Queries; kein Cross-Tenant-Datenzugriff möglich
 - **Datensparsamkeit:** Nur notwendige Felder werden erfasst; Ausweisbilder niemals persistiert
 - **Löschkonzept:** Automatische Löschfristen per DB-Trigger; retention_delete_after-Feld auf contracts
-- **Incident-Management:** ⚠️ Prozess noch zu dokumentieren (72h-Meldepflicht nach Art. 33 DSGVO)
+- **Incident-Management:** Prozess dokumentiert in docs/incident-response.md (72h-Meldepflicht nach Art. 33 DSGVO)
 - **Auftragsverarbeitung:** DPAs mit allen Auftragsverarbeitern geschlossen
 
 ---
 
-## Offene Punkte (vor Produktivbetrieb)
+## Offene Punkte
 
-- [ ] Incident-Response-Prozess dokumentieren (72h-Meldepflicht Art. 33 DSGVO)
-- [ ] Datenschutzerklärung für Endnutzer (Mieter) erstellen
-- [ ] VT-005 (OCR) nach Implementierung auf "produktiv" setzen
+- [x] Incident-Response-Prozess dokumentieren (72h-Meldepflicht Art. 33 DSGVO) — docs/incident-response.md
+- [x] Datenschutzerklärung für Endnutzer (Mieter) erstellen — docs/datenschutzerklaerung-endnutzer.md
+- [x] VT-005 (OCR) nach Implementierung auf "produktiv" setzen — ✅ produktiv, PLT Autovermietung
+- [ ] Consent-Zeitstempel in `contracts.ocr_consent_log` persistieren (R8, DSFA-NVL-001)
+- [ ] Produktion: Upload-Option deaktivieren, nur Kamera-Modus (R9, DSFA-NVL-001)
 - [ ] RoPA durch Datenschutzberater prüfen lassen
 - [ ] Ggf. Datenschutzbeauftragten benennen (prüfen ob Pflicht besteht nach Art. 37 DSGVO)
+- [ ] Datenschutzerklärung um OCR-Abschnitt ergänzen (VT-005)
