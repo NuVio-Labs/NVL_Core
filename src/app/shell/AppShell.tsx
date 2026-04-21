@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { PageErrorBoundary } from './PageErrorBoundary'
 import { SidebarProvider, useSidebar } from './SidebarContext'
+import { CommandPalette } from '@/components/CommandPalette'
 
 function AppShellInner() {
   const { open, close } = useSidebar()
@@ -40,6 +41,7 @@ export function AppShell() {
   return (
     <SidebarProvider>
       <AppShellInner />
+      <CommandPalette />
     </SidebarProvider>
   )
 }

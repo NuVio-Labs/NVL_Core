@@ -12,6 +12,7 @@ import { useBookingFieldDefinitions } from '../hooks/useBookingFieldDefinitions'
 import { useCreateBooking, useUpdateBooking, useCancelBooking } from '../hooks/useBookings'
 import { bookingService } from '../service/bookingService'
 import { useCompanySettings, useWorkspace } from '@/features/workspace'
+import { useCustomers } from '@/features/customers'
 import type { Booking, BookingFieldDefinition, BookingWithCreator } from '../types'
 import type { Resource } from '@/features/resources/types'
 
@@ -41,6 +42,7 @@ const KM_PACKAGES = [
 ] as const
 
 const baseSchema = z.object({
+  customer_id: z.string().optional(),
   first_name: z.string().min(1, 'Vorname erforderlich'),
   last_name: z.string().min(1, 'Nachname erforderlich'),
   phone: z.string().min(1, 'Telefonnummer erforderlich'),
@@ -82,6 +84,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
   const preisgruppeFeld = (companySettings.booking_field_preisgruppe as string) ?? 'preisgruppe'
   const standortFeld = (companySettings.booking_field_standort as string) ?? 'aktueller_standort'
 
+  const { data: customers = [] } = useCustomers()
   const [availability, setAvailability] = useState<boolean | null>(null)
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [customerType, setCustomerType] = useState<'privat' | 'gewerbe'>('privat')
@@ -102,6 +105,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      customer_id: '',
       first_name: '', last_name: '', phone: '',
       date: defaultDate, time: '08:00',
       resource_id: '', duration_mapping_id: '', price_list_id: '',
@@ -118,6 +122,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
     if (booking) {
       const start = new Date(booking.starts_at)
       reset({
+        customer_id: (booking as { customer_id?: string | null }).customer_id ?? '',
         first_name: booking.first_name,
         last_name: booking.last_name,
         phone: booking.phone,
@@ -132,6 +137,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
       })
     } else {
       reset({
+        customer_id: '',
         first_name: '', last_name: '', phone: '',
         date: defaultDate, time: '08:00',
         resource_id: '', duration_mapping_id: '', price_list_id: '',
@@ -141,6 +147,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
     setAvailability(null)
   }, [open, booking, fieldDefinitions, durationMappings]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const watchedCustomerId = useWatch({ control, name: 'customer_id' })
   const watchedResourceId = useWatch({ control, name: 'resource_id' })
   const watchedDurationId = useWatch({ control, name: 'duration_mapping_id' })
   const watchedDate = useWatch({ control, name: 'date' })
@@ -184,6 +191,16 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
       setValue('price_list_id', '')
     }
   }, [matchingPriceList?.id, setValue]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-fill contact fields from selected customer
+  useEffect(() => {
+    if (!watchedCustomerId) return
+    const c = customers.find((x) => x.id === watchedCustomerId)
+    if (!c) return
+    setValue('first_name', c.first_name)
+    setValue('last_name', c.last_name)
+    if (c.phone) setValue('phone', c.phone)
+  }, [watchedCustomerId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute starts_at / ends_at
   const { startsAt, endsAt } = (() => {
@@ -253,6 +270,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
 
   function resetForm() {
     reset({
+      customer_id: '',
       first_name: '', last_name: '', phone: '',
       date: '', time: '08:00',
       resource_id: '', duration_mapping_id: '', price_list_id: '',
@@ -266,6 +284,7 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
     if (!startsAt || !endsAt) return
 
     const payload = {
+      customer_id: values.customer_id || null,
       first_name: values.first_name,
       last_name: values.last_name,
       phone: values.phone,
@@ -323,6 +342,24 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Kunde verknüpfen */}
+          {customers.length > 0 && (
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-muted-foreground">Kunde aus Kundenliste (optional)</label>
+              <select
+                {...register('customer_id')}
+                className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+              >
+                <option value="">— Kein Kunde verknüpft —</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.last_name}, {c.first_name}{c.phone ? ` · ${c.phone}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Kundendaten */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">

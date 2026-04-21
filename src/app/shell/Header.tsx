@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, LogOut, User, Menu } from 'lucide-react'
+import { ChevronDown, LogOut, User, Menu, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/features/auth'
 import { useWorkspace } from '@/features/workspace'
@@ -34,6 +34,16 @@ export function Header() {
         <button onClick={toggle} className="md:hidden p-1 rounded hover:bg-muted transition-colors">
           <Menu className="w-5 h-5" />
         </button>
+      {/* Search trigger */}
+      <button
+        onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
+        className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors"
+      >
+        <Search className="w-3.5 h-3.5" />
+        <span>Suche</span>
+        <kbd className="text-xs border border-border rounded px-1 font-mono ml-1">⌘K</kbd>
+      </button>
+
       {/* Company Switcher */}
       <div className="relative" ref={companyRef}>
         <button

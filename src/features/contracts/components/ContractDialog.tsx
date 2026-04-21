@@ -6,11 +6,13 @@ import { X, CheckCircle, ChevronDown, ChevronUp, AlertCircle, Printer } from 'lu
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/features/auth'
 import { useResources } from '@/features/resources/hooks/useResources'
+import { useCustomers } from '@/features/customers'
 import { useCreateContract, useUpdateContract } from '../hooks/useContracts'
 import { useFeatureOcrScan } from '../hooks/useFeatureOcrScan'
 import { CompleteModal } from './CompleteModal'
 import { PrintDialog } from './PrintDialog'
 import { LicenseScanButton } from './LicenseScanButton'
+import { ContractAuditLog } from './ContractAuditLog'
 import type { ScannedLicenseData } from './LicenseScanButton'
 import type { ContractWithDetails, ContractExtras, ContractSecondRenter } from '../types'
 import type { BookingWithCreator } from '@/features/bookings/types'
@@ -41,6 +43,7 @@ const extrasSchema = z.object({
 })
 
 const schema = z.object({
+  customer_id: z.string().optional(),
   first_name: z.string().min(1, 'Vorname erforderlich'),
   last_name: z.string().min(1, 'Nachname erforderlich'),
   phone: z.string().optional(),
@@ -260,6 +263,7 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
 
   const { user } = useAuth()
   const { data: resources = [] } = useResources()
+  const { data: customers = [] } = useCustomers()
   const createContract = useCreateContract()
   const updateContract = useUpdateContract()
   const ocrEnabled = useFeatureOcrScan()
@@ -308,6 +312,7 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
       const sr = contract.second_renter as ContractSecondRenter | null
 
       reset({
+        customer_id: (contract as { customer_id?: string | null }).customer_id ?? '',
         first_name: contract.first_name,
         last_name: contract.last_name,
         phone: contract.phone ?? '',
@@ -385,10 +390,22 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
     }
   }, [open, contract, prefillBooking, reset])
 
+  const watchedCustomerId = watch('customer_id')
   const damageChecked = watch('damage')
   const paymentMethod = watch('payment_method')
   const hasSecondRenter = watch('has_second_renter')
   const extrasValues = watch('extras')
+
+  useEffect(() => {
+    if (!watchedCustomerId) return
+    const c = customers.find((x) => x.id === watchedCustomerId)
+    if (!c) return
+    setValue('first_name', c.first_name)
+    setValue('last_name', c.last_name)
+    if (c.phone) setValue('phone', c.phone)
+    if (c.street) setValue('street', c.street)
+    if (c.city) setValue('city', c.city)
+  }, [watchedCustomerId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null)
@@ -398,6 +415,7 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
         : null
 
       const payload = {
+        customer_id: values.customer_id || null,
         first_name: values.first_name,
         last_name: values.last_name,
         phone: values.phone || null,
@@ -484,6 +502,24 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
         {/* Body */}
         <form onSubmit={handleSubmit(onSubmit)} className="overflow-y-auto flex-1 px-6 py-5">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+
+            {/* ── Kunde verknüpfen ── */}
+            {customers.length > 0 && (
+              <Field label="Kunde aus Kundenliste (optional)" span>
+                <select
+                  {...register('customer_id')}
+                  disabled={disabled}
+                  className={inputCls}
+                >
+                  <option value="">— Kein Kunde verknüpft —</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.last_name}, {c.first_name}{c.phone ? ` · ${c.phone}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
             {/* ── Mieter 1 ── */}
             <SectionTitle>Mieter 1</SectionTitle>
@@ -773,6 +809,18 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
 
           </div>
         </form>
+
+        {/* Verlauf */}
+        {isEdit && contract?.id && (
+          <details className="px-6 py-3 border-t border-border shrink-0">
+            <summary className="text-xs font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors">
+              Änderungsverlauf
+            </summary>
+            <div className="mt-3">
+              <ContractAuditLog contractId={contract.id} />
+            </div>
+          </details>
+        )}
 
         {/* Datenschutz */}
         <div className="px-6 py-2 border-t border-border shrink-0 text-xs text-muted-foreground">

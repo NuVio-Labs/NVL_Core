@@ -85,8 +85,9 @@ function SectionHeader({ title }: { title: string }) {
   return <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
 }
 
-function BookingRow({ booking, resources }: { booking: Booking; resources: Resource[] }) {
+function BookingRow({ booking, resources, contracts }: { booking: Booking; resources: Resource[]; contracts: { id: string; booking_id: string | null }[] }) {
   const resource = resources.find((r) => r.id === booking.resource_id)
+  const relatedContract = contracts.find((c) => c.booking_id === booking.id)
   const now = new Date()
   const starts = new Date(booking.starts_at)
   const ends = new Date(booking.ends_at)
@@ -104,15 +105,27 @@ function BookingRow({ booking, resources }: { booking: Booking; resources: Resou
           {resource?.name ?? '—'} · {formatDate(booking.starts_at)} {formatTime(booking.starts_at)} – {formatDate(booking.ends_at)} {formatTime(booking.ends_at)}
         </p>
       </div>
-      <span className={cn(
-        'shrink-0 text-xs font-medium px-2 py-0.5 rounded-full',
-        isActive ? 'bg-green-100 text-green-700' :
-        isStartingToday ? 'bg-blue-100 text-blue-700' :
-        isEndingToday ? 'bg-orange-100 text-orange-700' :
-        'bg-muted text-muted-foreground'
-      )}>
-        {isActive ? 'Aktiv' : isStartingToday ? 'Startet heute' : isEndingToday ? 'Endet heute' : '—'}
-      </span>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className={cn(
+          'text-xs font-medium px-2 py-0.5 rounded-full',
+          isActive ? 'bg-green-100 text-green-700' :
+          isStartingToday ? 'bg-blue-100 text-blue-700' :
+          isEndingToday ? 'bg-orange-100 text-orange-700' :
+          'bg-muted text-muted-foreground'
+        )}>
+          {isActive ? 'Aktiv' : isStartingToday ? 'Startet heute' : isEndingToday ? 'Endet heute' : '—'}
+        </span>
+        {relatedContract && (
+          <Link
+            to="/contracts"
+            state={{ highlightId: relatedContract.id }}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Zum Vertrag"
+          >
+            <FileText className="w-3.5 h-3.5" />
+          </Link>
+        )}
+      </div>
     </div>
   )
 }
@@ -409,7 +422,7 @@ export function DashboardPage() {
               </p>
             ) : (
               todayEvents.map((b) => (
-                <BookingRow key={b.id} booking={b} resources={resources} />
+                <BookingRow key={b.id} booking={b} resources={resources} contracts={contracts} />
               ))
             )}
           </div>
