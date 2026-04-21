@@ -87,7 +87,7 @@ export function PriceListItemDialog({ open, priceListId, item, onSubmit, onClose
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md bg-background border border-border rounded-lg shadow-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative z-10 w-full max-w-md mx-4 bg-background border border-border rounded-lg shadow-lg p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">
             {item ? 'Position bearbeiten' : 'Position anlegen'}

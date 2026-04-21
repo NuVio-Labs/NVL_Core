@@ -120,7 +120,7 @@ function FieldTable({
   }
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-muted text-muted-foreground">
           <tr>
@@ -260,7 +260,7 @@ function DauerTarifeTab({
         </button>
       </div>
 
-      <div className="border border-border rounded-lg overflow-hidden">
+      <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted text-muted-foreground">
             <tr>
@@ -816,7 +816,7 @@ export function SettingsPage() {
             const moduleActions = Object.keys(permissions[module]).filter((a) => ACTION_LABELS[a as Action]) as Action[]
             if (moduleActions.length === 0) return null
             return (
-              <div key={module} className="border border-border rounded-lg overflow-hidden">
+              <div key={module} className="border border-border rounded-lg overflow-hidden overflow-x-auto">
                 <div className="bg-muted px-4 py-2.5 text-sm font-medium">{moduleLabel}</div>
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-muted-foreground text-xs">

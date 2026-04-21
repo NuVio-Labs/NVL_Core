@@ -455,7 +455,7 @@ export function ContractDialog({ open, contract, prefillBooking, onClose }: Prop
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 bg-background border border-border rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className="relative z-10 bg-background border border-border rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] mx-4 flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">

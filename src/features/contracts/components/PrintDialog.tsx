@@ -63,7 +63,7 @@ export function PrintDialog({ contract, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 bg-background border border-border rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="relative z-10 bg-background border border-border rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] mx-4 flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">

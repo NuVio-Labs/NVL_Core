@@ -112,7 +112,7 @@ function ItemsPanel({
       ) : items.length === 0 ? (
         <EmptyState icon={Tag} title="Noch keine Positionen vorhanden" description="Füge Positionen zu dieser Preisliste hinzu." />
       ) : (
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground">
               <tr>
@@ -270,7 +270,7 @@ export function PricingPage() {
           ) : undefined}
         />
       ) : (
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground">
               <tr>

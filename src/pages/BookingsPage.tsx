@@ -290,7 +290,7 @@ export function BookingsPage() {
 
       {/* List view */}
       {view === 'list' && (
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
           {isLoading ? (
             <p className="p-10 text-center text-muted-foreground text-sm">Laden…</p>
           ) : filteredBookings.length === 0 ? (
@@ -359,7 +359,7 @@ export function BookingsPage() {
       )}
 
       {/* Calendar grid */}
-      {view === 'calendar' && <div className="border border-border rounded-lg overflow-hidden">
+      {view === 'calendar' && <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
         {/* Weekday headers */}
         <div className="grid grid-cols-7 border-b border-border">
           {WEEKDAYS.map((d) => (

@@ -402,7 +402,7 @@ export function DashboardPage() {
         {/* Buchungen heute */}
         <div className="space-y-3">
           <SectionHeader title={isAdmin ? 'Buchungen heute' : 'Meine Buchungen heute'} />
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
             {todayEvents.length === 0 ? (
               <p className="px-4 py-6 text-sm text-muted-foreground text-center">
                 {isAdmin ? 'Keine Buchungen heute.' : 'Keine eigenen Buchungen heute.'}
@@ -426,7 +426,7 @@ export function DashboardPage() {
                 </span>
               )}
             </div>
-            <div className="border border-border rounded-lg overflow-hidden">
+            <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
               {huWarnungen.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground text-center">Keine HU-Warnungen.</p>
               ) : (
@@ -445,7 +445,7 @@ export function DashboardPage() {
               <SectionHeader title="Mitarbeiter" />
               <span className="text-xs text-muted-foreground">{staffMembers.length} gesamt</span>
             </div>
-            <div className="border border-border rounded-lg overflow-hidden">
+            <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
               {staffByLocation.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground text-center">Keine Mitarbeiter.</p>
               ) : (
@@ -485,7 +485,7 @@ export function DashboardPage() {
                 Alle anzeigen
               </Link>
             </div>
-            <div className="border border-border rounded-lg overflow-hidden">
+            <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
               {[
                 {
                   label: 'Aktive Verträge',
@@ -521,7 +521,7 @@ export function DashboardPage() {
         {/* Flotte Übersicht */}
         <div className="space-y-3">
           <SectionHeader title="Flotte Übersicht" />
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
             {[
               { label: 'Verfügbar', value: fleetStatus.verfuegbar, color: 'bg-green-500' },
               { label: 'Vermietet', value: fleetStatus.vermietet, color: 'bg-blue-500' },

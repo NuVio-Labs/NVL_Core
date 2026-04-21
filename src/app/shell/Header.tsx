@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, LogOut, User } from 'lucide-react'
+import { ChevronDown, LogOut, User, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/features/auth'
 import { useWorkspace } from '@/features/workspace'
+import { useSidebar } from './SidebarContext'
 
 export function Header() {
   const { profile, signOut } = useAuth()
   const { activeCompany, memberships, switchCompany } = useWorkspace()
+  const { toggle } = useSidebar()
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
   const companyRef = useRef<HTMLDivElement>(null)
@@ -26,7 +28,12 @@ export function Header() {
   }, [])
 
   return (
-    <header className="h-14 border-b border-border bg-background flex items-center justify-between px-5 shrink-0">
+    <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 md:px-5 shrink-0">
+      <div className="flex items-center gap-3">
+        {/* Hamburger — only on mobile */}
+        <button onClick={toggle} className="md:hidden p-1 rounded hover:bg-muted transition-colors">
+          <Menu className="w-5 h-5" />
+        </button>
       {/* Company Switcher */}
       <div className="relative" ref={companyRef}>
         <button
@@ -56,6 +63,7 @@ export function Header() {
             ))}
           </div>
         )}
+      </div>
       </div>
 
       {/* User Menu */}

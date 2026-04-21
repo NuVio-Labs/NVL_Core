@@ -1,15 +1,21 @@
 import { NavLink } from 'react-router'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { navigation } from '@/app/navigation/config'
 import { useWorkspace } from '@/features/workspace'
+import { useSidebar } from './SidebarContext'
 
 export function Sidebar() {
   const { activeRole } = useWorkspace()
+  const { close } = useSidebar()
 
   return (
     <aside className="w-60 shrink-0 border-r border-border bg-background flex flex-col h-screen">
-      <div className="h-14 flex items-center px-5 border-b border-border">
+      <div className="h-14 flex items-center justify-between px-5 border-b border-border">
         <span className="font-bold text-base tracking-tight">NuVio Core</span>
+        <button onClick={close} className="md:hidden p-1 rounded hover:bg-muted transition-colors">
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
@@ -30,6 +36,7 @@ export function Sidebar() {
                     <NavLink
                       to={item.path}
                       end={item.path === '/'}
+                      onClick={close}
                       className={({ isActive }) =>
                         cn(
                           'flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors',

@@ -93,7 +93,7 @@ export function CustomersPage() {
             className="w-full max-w-sm border border-border rounded-md px-3 py-2 text-sm bg-background"
           />
 
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted text-muted-foreground">
                 <tr>

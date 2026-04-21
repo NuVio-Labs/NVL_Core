@@ -82,7 +82,7 @@ export function CompleteModal({ contract, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 bg-background border border-border rounded-xl shadow-xl w-full max-w-md flex flex-col">
+      <div className="relative z-10 bg-background border border-border rounded-xl shadow-xl w-full max-w-md max-h-[90vh] mx-4 flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h3 className="font-semibold">Vertrag abschließen</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">

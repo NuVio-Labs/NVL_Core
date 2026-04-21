@@ -200,7 +200,7 @@ export function ContractsPage() {
       ) : filteredAndSorted.length === 0 ? (
         <EmptyState icon={FileText} title="Keine Verträge gefunden" description="Keine Verträge entsprechen der aktuellen Filterauswahl." />
       ) : (
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted text-muted-foreground">
               <tr>
