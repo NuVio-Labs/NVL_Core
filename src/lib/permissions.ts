@@ -8,30 +8,18 @@
  * Alle Guards hängen an activeCompanyId + activeRole (+ optional platform_role).
  * Owner-Zugriff wird immer zusätzlich geprüft, niemals als Company-Rolle behandelt.
  *
- * ─── GEPLANT: Permission Overrides (noch nicht implementiert) ────────────────
- * Admin soll in den Company-Einstellungen die globale Matrix überschreiben können:
+ * ─── Permission Overrides ────────────────────────────────────────────────────
+ * Admin kann in den Company-Einstellungen die globale Matrix überschreiben:
  *   - subject_type 'role'       → ganze Rolle bekommt ein Extra-Recht oder verliert eines
- *   - subject_type 'membership' → einzelner User bekommt individuelle Rechte
+ *   - subject_type 'membership' → einzelner User bekommt individuelle Rechte (Phase 2)
  *
- * Datenmodell (zukünftige Tabelle):
- *   company_permission_overrides (
- *     id uuid, company_id uuid,
- *     subject_type 'role' | 'membership',
- *     subject_id   text,   -- Rollenname oder membership.id
- *     module       text,
- *     action       text,
- *     granted      boolean  -- true = Recht hinzufügen, false = Recht entziehen
- *   )
- *
- * Auflösungsreihenfolge (wenn implementiert):
+ * Auflösungsreihenfolge:
  *   1. isPlatformOwner() → sofort true
- *   2. membership-spezifischer Override (engster Scope gewinnt)
+ *   2. membership-spezifischer Override (engster Scope gewinnt) — Phase 2
  *   3. rollen-spezifischer Override
  *   4. globale Matrix (diese Datei)
  *
- * Einstiegspunkt: canWithOverrides(role, membershipId, module, action, companyId)
- * Phase 1: nur subject_type = 'role'
- * Phase 2: subject_type = 'membership' (Einzeluser-Override)
+ * Einstiegspunkt: canWithOverrides(role, membershipId, module, action, overrides)
  */
 
 export type PlatformRole = 'owner'
@@ -234,6 +222,49 @@ export function can(
   action: Action,
 ): boolean {
   if (role === 'owner') return true
+  return hasPermission(role as CompanyRole, module, action)
+}
+
+// ─── Override type ────────────────────────────────────────────────────────────
+
+export interface PermissionOverride {
+  subject_type: 'role' | 'membership'
+  subject_id: string
+  module: string
+  action: string
+  granted: boolean
+}
+
+/**
+ * Check permission with company-level overrides applied.
+ * Phase 1: subject_type = 'role' overrides only.
+ * Phase 2: subject_type = 'membership' (membershipId required).
+ */
+export function canWithOverrides(
+  role: AnyRole | null | undefined,
+  membershipId: string | null | undefined,
+  module: Module,
+  action: Action,
+  overrides: PermissionOverride[],
+): boolean {
+  if (role === 'owner') return true
+  if (!role) return false
+
+  // Phase 2: membership-specific override (engster Scope)
+  if (membershipId) {
+    const membershipOverride = overrides.find(
+      (o) => o.subject_type === 'membership' && o.subject_id === membershipId && o.module === module && o.action === action,
+    )
+    if (membershipOverride !== undefined) return membershipOverride.granted
+  }
+
+  // Phase 1: role-specific override
+  const roleOverride = overrides.find(
+    (o) => o.subject_type === 'role' && o.subject_id === role && o.module === module && o.action === action,
+  )
+  if (roleOverride !== undefined) return roleOverride.granted
+
+  // Fallback: global matrix
   return hasPermission(role as CompanyRole, module, action)
 }
 

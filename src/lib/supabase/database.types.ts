@@ -222,6 +222,47 @@ export type Database = {
         }
         Relationships: []
       }
+      company_permission_overrides: {
+        Row: {
+          action: string
+          company_id: string
+          created_at: string
+          granted: boolean
+          id: string
+          module: string
+          subject_id: string
+          subject_type: string
+        }
+        Insert: {
+          action: string
+          company_id: string
+          created_at?: string
+          granted: boolean
+          id?: string
+          module: string
+          subject_id: string
+          subject_type: string
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          module?: string
+          subject_id?: string
+          subject_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_permission_overrides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           advance_deposit: number | null

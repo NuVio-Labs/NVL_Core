@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
-import { useWorkspace, useCompanySettings, useUpdateCompanySettings } from '@/features/workspace'
+import { useWorkspace, useCompanySettings, useUpdateCompanySettings, usePermissionOverrides, useUpsertPermissionOverride, useRemovePermissionOverride } from '@/features/workspace'
+import type { PermissionOverrideWithId } from '@/features/workspace/hooks/usePermissionOverrides'
+import { permissions } from '@/lib/permissions'
+import type { CompanyRole, Module, Action } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 import {
   useFieldDefinitions,
@@ -34,7 +37,7 @@ import type { StaffFieldDefinition } from '@/features/staff/types'
 import { usePriceListItemFieldDefinitionsByCompany } from '@/features/pricing/hooks/usePriceListItemFieldDefinitions'
 import { useAuth } from '@/features/auth'
 
-type Tab = 'profil' | 'allgemein' | 'ressourcenfelder' | 'buchungsfelder' | 'mitarbeiterfelder' | 'dauer'
+type Tab = 'profil' | 'allgemein' | 'ressourcenfelder' | 'buchungsfelder' | 'mitarbeiterfelder' | 'dauer' | 'berechtigungen'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'profil', label: 'Profil' },
@@ -43,7 +46,37 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'buchungsfelder', label: 'Buchungsfelder' },
   { id: 'mitarbeiterfelder', label: 'Mitarbeiterfelder' },
   { id: 'dauer', label: 'Dauer & Tarife' },
+  { id: 'berechtigungen', label: 'Berechtigungen' },
 ]
+
+const ROLE_LABELS: Record<CompanyRole, string> = {
+  admin: 'Administrator',
+  editor: 'Bearbeiter',
+  user: 'Mitarbeiter',
+}
+
+const ROLES: CompanyRole[] = ['editor', 'user']
+
+const MODULE_LABELS: Partial<Record<Module, string>> = {
+  'customers':     'Kunden',
+  'resources.data':'Ressourcen',
+  'bookings':      'Buchungen',
+  'pricing':       'Preislisten',
+  'contracts':     'Verträge',
+  'ocr':           'Dokument-Scan (OCR)',
+  'uploads':       'Uploads',
+}
+
+const ACTION_LABELS: Partial<Record<Action, string>> = {
+  read:           'Lesen',
+  create:         'Anlegen',
+  update:         'Bearbeiten',
+  delete:         'Löschen',
+  archive:        'Archivieren',
+  override_price: 'Preis überschreiben',
+  finalize:       'Abschließen',
+  cancel:         'Stornieren',
+}
 
 interface FieldFormValues {
   label: string
@@ -391,6 +424,32 @@ export function SettingsPage() {
   const createDurMapping = useCreateDurationTariffMapping()
   const updateDurMapping = useUpdateDurationTariffMapping()
   const deleteDurMapping = useDeleteDurationTariffMapping()
+
+  // Berechtigungen
+  const { data: overrides = [] } = usePermissionOverrides()
+  const upsertOverride = useUpsertPermissionOverride()
+  const removeOverride = useRemovePermissionOverride()
+
+  function getOverride(role: CompanyRole, module: Module, action: Action): PermissionOverrideWithId | undefined {
+    return overrides.find((o) => o.subject_type === 'role' && o.subject_id === role && o.module === module && o.action === action)
+  }
+
+  function toggleOverride(role: CompanyRole, module: Module, action: Action) {
+    const existing = getOverride(role, module, action)
+    const defaultAllowed = permissions[module][action]?.includes(role) ?? false
+    if (existing) {
+      removeOverride.mutate(existing.id)
+    } else {
+      upsertOverride.mutate({ subject_type: 'role', subject_id: role, module, action, granted: !defaultAllowed })
+    }
+  }
+
+  function getCellState(role: CompanyRole, module: Module, action: Action): 'granted' | 'denied' | 'default-granted' | 'default-denied' {
+    const override = getOverride(role, module, action)
+    const defaultAllowed = permissions[module][action]?.includes(role) ?? false
+    if (override) return override.granted ? 'granted' : 'denied'
+    return defaultAllowed ? 'default-granted' : 'default-denied'
+  }
 
   const canManageCompany = activeRole === 'admin'
   const visibleTabs = TABS.filter((t) => t.id === 'profil' || canManageCompany)
@@ -741,6 +800,69 @@ export function SettingsPage() {
           onUpdate={(id, payload) => updateDurMapping.mutateAsync({ id, payload })}
           onDelete={(id) => deleteDurMapping.mutateAsync(id)}
         />
+      )}
+
+      {activeTab === 'berechtigungen' && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-base font-semibold">Berechtigungen</h2>
+            <p className="text-muted-foreground text-sm">
+              Passe die Standard-Berechtigungen für Rollen an. Grün = erlaubt, Rot = gesperrt, Grau = Standard.
+            </p>
+          </div>
+
+          {(Object.entries(MODULE_LABELS) as [Module, string][]).map(([module, moduleLabel]) => {
+            const moduleActions = Object.keys(permissions[module]).filter((a) => ACTION_LABELS[a as Action]) as Action[]
+            if (moduleActions.length === 0) return null
+            return (
+              <div key={module} className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted px-4 py-2.5 text-sm font-medium">{moduleLabel}</div>
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-muted-foreground text-xs">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-medium">Aktion</th>
+                      {ROLES.map((role) => (
+                        <th key={role} className="text-center px-4 py-2 font-medium w-32">{ROLE_LABELS[role]}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {moduleActions.map((action) => (
+                      <tr key={action} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-2.5 text-muted-foreground">{ACTION_LABELS[action]}</td>
+                        {ROLES.map((role) => {
+                          const state = getCellState(role, module, action)
+                          const isOverride = state === 'granted' || state === 'denied'
+                          return (
+                            <td key={role} className="px-4 py-2.5 text-center">
+                              <button
+                                onClick={() => toggleOverride(role, module, action)}
+                                title={isOverride ? 'Klicken zum Zurücksetzen auf Standard' : 'Klicken zum Überschreiben'}
+                                className={cn(
+                                  'inline-flex items-center justify-center w-8 h-6 rounded text-xs font-medium transition-colors',
+                                  state === 'granted' && 'bg-green-100 text-green-700 ring-2 ring-green-400',
+                                  state === 'denied' && 'bg-red-100 text-red-700 ring-2 ring-red-400',
+                                  state === 'default-granted' && 'bg-green-50 text-green-600',
+                                  state === 'default-denied' && 'bg-muted text-muted-foreground',
+                                )}
+                              >
+                                {(state === 'granted' || state === 'default-granted') ? '✓' : '✗'}
+                              </button>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
+
+          <p className="text-xs text-muted-foreground">
+            Administrator hat immer vollen Zugriff. Farblich hinterlegte Buttons sind aktive Overrides — Klick setzt auf Standard zurück.
+          </p>
+        </div>
       )}
 
       <FieldDefinitionDialog
