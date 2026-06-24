@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X, AlertTriangle, Info } from 'lucide-react'
+import { X, AlertTriangle, Info, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useResources } from '@/features/resources/hooks/useResources'
 import { usePriceLists } from '@/features/pricing/hooks/usePriceLists'
@@ -12,7 +12,7 @@ import { useBookingFieldDefinitions } from '../hooks/useBookingFieldDefinitions'
 import { useCreateBooking, useUpdateBooking, useCancelBooking } from '../hooks/useBookings'
 import { bookingService } from '../service/bookingService'
 import { useCompanySettings, useWorkspace } from '@/features/workspace'
-import { useCustomers } from '@/features/customers'
+import { useCustomers, useCreateCustomer } from '@/features/customers'
 import type { Booking, BookingFieldDefinition, BookingWithCreator } from '../types'
 import type { Resource } from '@/features/resources/types'
 
@@ -40,6 +40,18 @@ const KM_PACKAGES = [
   { key: 'km_500', label: '+500 km' },
   { key: 'km_1000', label: '+1000 km' },
 ] as const
+
+// Mehrtagesbuchungen: aus dem 24h-Tarif werden virtuelle Stufen (2–5 Tage)
+// abgeleitet. Wert-Schema "<mappingId>×<faktor>" — der echte DB-Tarif bleibt
+// unangetastet, Dauer und Preis werden nur mit dem Faktor multipliziert.
+const MULTI_DAY_FACTORS = [2, 3, 4, 5] as const
+const DAY_MINUTES = 1440
+
+function parseDurationValue(value: string): { mappingId: string; factor: number } {
+  const [mappingId, factorStr] = value.split('×')
+  const factor = factorStr ? Number(factorStr) : 1
+  return { mappingId, factor: Number.isFinite(factor) && factor > 0 ? factor : 1 }
+}
 
 const baseSchema = z.object({
   customer_id: z.string().optional(),
@@ -87,6 +99,8 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   const [availability, setAvailability] = useState<boolean | null>(null)
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [customerType, setCustomerType] = useState<'privat' | 'gewerbe'>('privat')
+  const [savedAsCustomer, setSavedAsCustomer] = useState(false)
+  const createCustomer = useCreateCustomer()
 
   const metaSchema = buildMetaSchema(fieldDefinitions)
   const schema = baseSchema
@@ -101,7 +115,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
     defaultMeta[def.name] = existingMeta[def.name] ?? (def.field_type === 'boolean' ? false : '')
   }
 
-  const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       customer_id: '',
@@ -120,6 +134,17 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
     }
     if (booking) {
       const start = new Date(booking.starts_at)
+      // Dauer-Auswahl rekonstruieren — inkl. Mehrtages-Faktor aus dem
+      // gespeicherten Zeitraum (z.B. 24h-Tarif über 3 Tage → "<id>×3").
+      const baseMapping = durationMappings.find((m) => m.field_name === (booking as { duration_field?: string | null }).duration_field)
+      const spanMinutes = (new Date(booking.ends_at).getTime() - start.getTime()) / 60000
+      let durationValue = baseMapping?.id ?? ''
+      if (baseMapping && baseMapping.duration_minutes > 0) {
+        const factor = Math.round(spanMinutes / baseMapping.duration_minutes)
+        if (factor >= 2 && (MULTI_DAY_FACTORS as readonly number[]).includes(factor)) {
+          durationValue = `${baseMapping.id}×${factor}`
+        }
+      }
       reset({
         customer_id: (booking as { customer_id?: string | null }).customer_id ?? '',
         first_name: booking.first_name,
@@ -128,7 +153,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
         date: start.toISOString().slice(0, 10),
         time: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
         resource_id: booking.resource_id,
-        duration_mapping_id: durationMappings.find((m) => m.field_name === (booking as { duration_field?: string | null }).duration_field)?.id ?? '',
+        duration_mapping_id: durationValue,
         price_list_id: booking.price_list_id ?? '',
         km_package: (booking as { km_package?: string | null }).km_package ?? '',
         notes: booking.notes ?? '',
@@ -144,9 +169,12 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
       })
     }
     setAvailability(null)
+    setSavedAsCustomer(false)
   }, [open, booking, fieldDefinitions, durationMappings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const watchedCustomerId = useWatch({ control, name: 'customer_id' })
+  const watchedFirstName = useWatch({ control, name: 'first_name' })
+  const watchedLastName = useWatch({ control, name: 'last_name' })
   const watchedResourceId = useWatch({ control, name: 'resource_id' })
   const watchedDurationId = useWatch({ control, name: 'duration_mapping_id' })
   const watchedDate = useWatch({ control, name: 'date' })
@@ -155,7 +183,11 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   const watchedKmPackage = useWatch({ control, name: 'km_package' })
 
   const selectedResource = resources.find((r) => r.id === watchedResourceId)
-  const selectedMapping = durationMappings.find((m) => m.id === watchedDurationId)
+  const { mappingId: selectedMappingId, factor: durationFactor } = parseDurationValue(watchedDurationId ?? '')
+  const selectedMapping = durationMappings.find((m) => m.id === selectedMappingId)
+
+  // 24h-Tarif als Basis für virtuelle Mehrtages-Stufen
+  const dayBaseMapping = durationMappings.find((m) => m.duration_minutes === DAY_MINUTES)
 
   // Filter price lists by customer type and resource category
   const resourceCategory = (() => {
@@ -201,11 +233,11 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
     if (c.phone) setValue('phone', c.phone)
   }, [watchedCustomerId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Compute starts_at / ends_at
+  // Compute starts_at / ends_at (Dauer × Faktor für Mehrtagesbuchungen)
   const { startsAt, endsAt } = (() => {
     if (!watchedDate || !watchedTime || !selectedMapping) return { startsAt: null, endsAt: null }
     const start = new Date(`${watchedDate}T${watchedTime}:00`)
-    const end = new Date(start.getTime() + selectedMapping.duration_minutes * 60 * 1000)
+    const end = new Date(start.getTime() + selectedMapping.duration_minutes * durationFactor * 60 * 1000)
     return { startsAt: start, endsAt: end }
   })()
 
@@ -243,7 +275,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
     const itemMeta = (matchingItem.metadata ?? {}) as Record<string, unknown>
     const val = itemMeta[selectedMapping.field_name]
     if (val === undefined || val === null || val === '') return { basePrice: null, kmPrice: null, calculatedPrice: null }
-    const base = Number(String(val).replace(',', '.'))
+    const base = Number(String(val).replace(',', '.')) * durationFactor
 
     let km: number | null = null
     if (watchedKmPackage && itemMeta[watchedKmPackage] !== undefined) {
@@ -277,6 +309,23 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
     })
     setAvailability(null)
     setCustomerType('privat')
+  }
+
+  // Aktuelle Kontaktdaten der Buchung direkt als Kunde übernehmen + verknüpfen.
+  async function handleSaveAsCustomer() {
+    const v = getValues()
+    if (!v.first_name?.trim() || !v.last_name?.trim()) return
+    const created = await createCustomer.mutateAsync({
+      first_name: v.first_name.trim(),
+      last_name: v.last_name.trim(),
+      phone: v.phone?.trim() || null,
+      email: null,
+      street: null,
+      city: null,
+      notes: null,
+    })
+    setValue('customer_id', created.id)
+    setSavedAsCustomer(true)
   }
 
   async function onSubmit(values: FormValues) {
@@ -342,22 +391,41 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Kunde verknüpfen */}
-          {customers.length > 0 && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-muted-foreground">Kunde aus Kundenliste (optional)</label>
-              <select
-                {...register('customer_id')}
-                className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-muted-foreground">Kunde aus Kundenliste (optional)</label>
+            <div className="flex items-center gap-2">
+              {customers.length > 0 ? (
+                <select
+                  {...register('customer_id')}
+                  className="flex-1 rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                >
+                  <option value="">— Kein Kunde verknüpft —</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.last_name}, {c.first_name}{c.phone ? ` · ${c.phone}` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="flex-1 text-sm text-muted-foreground">Noch keine Kunden angelegt.</p>
+              )}
+              <button
+                type="button"
+                onClick={handleSaveAsCustomer}
+                disabled={!watchedFirstName?.trim() || !watchedLastName?.trim() || createCustomer.isPending || savedAsCustomer}
+                title="Eingegebene Daten als Kunden speichern"
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-md border border-input text-sm hover:bg-muted transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
               >
-                <option value="">— Kein Kunde verknüpft —</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.last_name}, {c.first_name}{c.phone ? ` · ${c.phone}` : ''}
-                  </option>
-                ))}
-              </select>
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  {createCustomer.isPending ? 'Speichern…' : savedAsCustomer ? 'Gespeichert' : 'Als Kunde'}
+                </span>
+              </button>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground">
+              Übernimmt Vorname, Nachname und Telefon als neuen Kunden und verknüpft ihn.
+            </p>
+          </div>
 
           {/* Kundendaten */}
           <div className="grid grid-cols-2 gap-3">
@@ -508,6 +576,15 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
                 {durationMappings.map((m) => (
                   <option key={m.id} value={m.id}>{m.label}</option>
                 ))}
+                {dayBaseMapping && (
+                  <optgroup label="Mehrere Tage">
+                    {MULTI_DAY_FACTORS.map((f) => (
+                      <option key={`${dayBaseMapping.id}×${f}`} value={`${dayBaseMapping.id}×${f}`}>
+                        {f} Tage
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             )}
             {errors.duration_mapping_id && <p className="text-destructive text-xs">{errors.duration_mapping_id.message}</p>}
@@ -610,7 +687,9 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
               {basePrice !== null && matchingItem && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Tarif ({matchingItem.name}):</span>
+                    <span className="text-muted-foreground">
+                      Tarif ({matchingItem.name}){durationFactor > 1 ? ` · ${durationFactor} Tage` : ''}:
+                    </span>
                     <span className="tabular-nums">{formatPrice(basePrice)}</span>
                   </div>
                   {kmPrice !== null && (

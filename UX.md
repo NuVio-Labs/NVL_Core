@@ -24,6 +24,10 @@ sondern die allgemeine Bedienbarkeit der Plattform betreffen.
 | Ressourcen is_active Toggle | Ein-Klick Status-Toggle direkt in der Tabelle ohne Edit-Dialog |
 | Profil-Seite erweitert | Rollenanzeige + Passwort ändern mit Validierung und Inline-Feedback |
 | EmptyState Komponente | Wiederverwendbare `EmptyState` in `src/components/` — genutzt in Customers, Resources, Staff, Pricing |
+| Mehrtagesbuchungen | Aus dem 24h-Tarif abgeleitete Stufen "2–5 Tage" im Dauer-Dropdown — Preis × N und Enddatum × N, keine neuen DB-Felder |
+| Durchgehende Kalenderbalken | Mehrtägige Buchungen als ein zusammenhängender Balken mit fester Lane (Zeilen-Zuordnung pro Monat), Platzhalter halten Balken in Spur |
+| Kunde aus Buchung anlegen | "Als Kunde"-Button im BookingDialog übernimmt Vor-/Nachname + Telefon direkt als neuen Kunden und verknüpft ihn |
+| Tages-Modal Kalender | Klick auf Tag (oder "+N weitere") öffnet Liste aller Tagestermine mit Status, Zeitraum, Kennzeichen → bearbeiten oder neu anlegen |
 
 ---
 

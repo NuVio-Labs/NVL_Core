@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Search, X, LayoutList, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, LayoutList, CalendarDays, Plus } from 'lucide-react'
 import { useBookingsByMonth } from '@/features/bookings/hooks/useBookings'
 import { BookingDialog } from '@/features/bookings/components/BookingDialog'
 import type { BookingWithCreator } from '@/features/bookings/types'
@@ -55,13 +55,25 @@ function formatDateTime(iso: string): string {
   })
 }
 
-function BookingChip({ booking, today, onClick }: {
+function BookingChip({ booking, today, day, onClick }: {
   booking: BookingWithCreator
   today: Date
+  day: Date
   onClick: (b: BookingWithCreator, e: React.MouseEvent) => void
 }) {
   const [hovered, setHovered] = useState(false)
   const status = getBookingStatus(booking, today)
+
+  // Durchgehender Balken über mehrere Tage: Name nur am Startsegment,
+  // verbindende Kanten ohne Rundung + über die Zellgrenze gezogen.
+  const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+  const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+  const start = new Date(booking.starts_at)
+  const end = new Date(booking.ends_at)
+  const isFirstDay = start >= dayStart
+  const isLastDay = end < dayEnd
+  const isWeekStart = day.getDay() === 1 // Montag → Name am Zeilenanfang wiederholen
+  const showLabel = isFirstDay || isWeekStart
 
   return (
     <div className="relative">
@@ -70,11 +82,13 @@ function BookingChip({ booking, today, onClick }: {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         className={cn(
-          'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer transition-colors flex items-center gap-1',
+          'text-xs h-[18px] truncate cursor-pointer transition-colors flex items-center gap-1',
           STATUS_CHIP[status],
+          isFirstDay ? 'rounded-l ml-0 pl-1.5' : '-ml-1.5 pl-1.5 rounded-l-none',
+          isLastDay ? 'rounded-r mr-0 pr-1.5' : '-mr-1.5 pr-1.5 rounded-r-none',
         )}
       >
-        <span className="truncate">{booking.first_name} {booking.last_name}</span>
+        <span className="truncate">{showLabel ? `${booking.first_name} ${booking.last_name}` : ' '}</span>
       </div>
       {hovered && (
         <div
@@ -98,12 +112,131 @@ function BookingChip({ booking, today, onClick }: {
   )
 }
 
+const STATUS_LABEL: Record<BookingStatus, string> = {
+  'active': 'Aktiv',
+  'ending-today': 'Endet heute',
+  'overdue': 'Überfällig',
+}
+
+const STATUS_PILL: Record<BookingStatus, string> = {
+  'active': 'bg-blue-100 text-blue-800',
+  'ending-today': 'bg-orange-100 text-orange-800',
+  'overdue': 'bg-red-100 text-red-800',
+}
+
+function DayBookingsModal({ day, bookings, today, onClose, onNew, onSelect }: {
+  day: Date
+  bookings: BookingWithCreator[]
+  today: Date
+  onClose: () => void
+  onNew: (day: Date) => void
+  onSelect: (booking: BookingWithCreator) => void
+}) {
+  const dayBookings = bookingsForDay(bookings, day).sort(
+    (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+  )
+  const dateLabel = day.toLocaleDateString('de-DE', {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative z-10 bg-background border border-border rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <h2 className="text-base font-semibold">{dateLabel}</h2>
+            <p className="text-xs text-muted-foreground">
+              {dayBookings.length === 0 ? 'Keine Termine' : `${dayBookings.length} Termin${dayBookings.length === 1 ? '' : 'e'}`}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-4 space-y-2">
+          {dayBookings.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              An diesem Tag gibt es noch keine Buchungen.
+            </p>
+          ) : (
+            dayBookings.map((b) => {
+              const status = getBookingStatus(b, today)
+              const kennzeichen = (b.resource?.metadata as Record<string, unknown>)?.kennzeichen
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => onSelect(b)}
+                  className="w-full text-left border border-border rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-sm truncate">{b.first_name} {b.last_name}</span>
+                    <span className={cn('shrink-0 text-xs font-medium px-2 py-0.5 rounded-full', STATUS_PILL[status])}>
+                      {STATUS_LABEL[status]}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatDateTime(b.starts_at)} – {formatDateTime(b.ends_at)}
+                  </p>
+                  {kennzeichen ? (
+                    <p className="text-xs text-muted-foreground mt-0.5">{String(kennzeichen)}</p>
+                  ) : null}
+                </button>
+              )
+            })
+          )}
+        </div>
+
+        <div className="px-5 py-4 border-t border-border">
+          <button
+            onClick={() => onNew(day)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" />
+            Buchung anlegen
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const MAX_LANES = 3
+
+/**
+ * Weist jeder Buchung eine feste „Lane" (Zeile) zu, die über alle Tage gilt.
+ * So bleibt ein mehrtägiger Balken über alle Tage in derselben Zeile und
+ * darunterliegende Buchungen rutschen nicht hoch, wenn an einem Tag eine
+ * Buchung fehlt. Greedy nach Startzeit, niedrigste freie nicht-überlappende Lane.
+ */
+function assignLanes(bookings: BookingWithCreator[]): Map<string, number> {
+  const sorted = [...bookings].sort(
+    (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+  )
+  const laneEnds: number[] = [] // jeweils das ends_at der letzten Buchung pro Lane
+  const lanes = new Map<string, number>()
+  for (const b of sorted) {
+    const start = new Date(b.starts_at).getTime()
+    const end = new Date(b.ends_at).getTime()
+    let lane = laneEnds.findIndex((e) => e <= start)
+    if (lane === -1) {
+      lane = laneEnds.length
+      laneEnds.push(end)
+    } else {
+      laneEnds[lane] = end
+    }
+    lanes.set(b.id, lane)
+  }
+  return lanes
+}
+
 function bookingsForDay(bookings: BookingWithCreator[], day: Date): BookingWithCreator[] {
+  const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+  const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
   return bookings.filter((b) => {
     const start = new Date(b.starts_at)
     const end = new Date(b.ends_at)
-    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
-    const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
     return start < dayEnd && end > dayStart
   })
 }
@@ -116,6 +249,7 @@ export function BookingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
   const [editingBooking, setEditingBooking] = useState<BookingWithCreator | undefined>()
+  const [dayListDate, setDayListDate] = useState<Date | null>(null)
 
   const { data: bookings = [], isLoading } = useBookingsByMonth(year, month)
 
@@ -140,6 +274,9 @@ export function BookingsPage() {
     return list
   }, [bookings, search, filterStatus])
 
+  // Feste Zeilen-Zuordnung pro Buchung für den ganzen Monat (durchgehende Balken).
+  const lanes = useMemo(() => assignLanes(filteredBookings), [filteredBookings])
+
   const hasFilter = search || filterStatus !== 'alle'
 
   function prevMonth() {
@@ -153,13 +290,28 @@ export function BookingsPage() {
   }
 
   function handleDayClick(day: Date) {
+    // Klick auf den Tag → Tages-Liste als Modal (statt direkt neue Buchung)
+    setDayListDate(day)
+  }
+
+  function handleBookingClick(booking: BookingWithCreator, e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditingBooking(booking)
+    setSelectedDate(new Date(booking.starts_at))
+    setDialogOpen(true)
+  }
+
+  // Aus der Tages-Liste: neue Buchung für diesen Tag anlegen
+  function handleNewBookingForDay(day: Date) {
+    setDayListDate(null)
     setSelectedDate(day)
     setEditingBooking(undefined)
     setDialogOpen(true)
   }
 
-  function handleBookingClick(booking: BookingWithCreator, e: React.MouseEvent) {
-    e.stopPropagation()
+  // Aus der Tages-Liste: bestehende Buchung bearbeiten
+  function handleEditFromList(booking: BookingWithCreator) {
+    setDayListDate(null)
     setEditingBooking(booking)
     setSelectedDate(new Date(booking.starts_at))
     setDialogOpen(true)
@@ -360,19 +512,47 @@ export function BookingsPage() {
                     {day.getDate()}
                   </div>
                   <div className="space-y-0.5">
-                    {dayBookings.slice(0, 3).map((b) => (
-                      <BookingChip
-                        key={b.id}
-                        booking={b}
-                        today={today}
-                        onClick={handleBookingClick}
-                      />
-                    ))}
-                    {dayBookings.length > 3 && (
-                      <div className="text-xs text-muted-foreground px-1">
-                        +{dayBookings.length - 3} weitere
-                      </div>
-                    )}
+                    {(() => {
+                      // Buchungen auf ihre feste Lane verteilen; leere Lanes als
+                      // Platzhalter rendern, damit Balken nicht hochrutschen.
+                      const slots: (BookingWithCreator | null)[] = Array(MAX_LANES).fill(null)
+                      let overflow = 0
+                      for (const b of dayBookings) {
+                        const lane = lanes.get(b.id) ?? 0
+                        if (lane < MAX_LANES) slots[lane] = b
+                        else overflow++
+                      }
+                      // ungenutzte hintere Lanes abschneiden (nur Lücken zwischen
+                      // belegten Lanes als Platzhalter behalten)
+                      let lastUsed = -1
+                      slots.forEach((s, i) => { if (s) lastUsed = i })
+                      return (
+                        <>
+                          {slots.slice(0, lastUsed + 1).map((b, i) =>
+                            b ? (
+                              <BookingChip
+                                key={b.id}
+                                booking={b}
+                                today={today}
+                                day={day}
+                                onClick={handleBookingClick}
+                              />
+                            ) : (
+                              <div key={`empty-${i}`} className="h-[18px]" aria-hidden />
+                            ),
+                          )}
+                          {overflow > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDayListDate(day) }}
+                              className="text-xs text-muted-foreground px-1 hover:text-foreground hover:underline text-left w-full"
+                            >
+                              +{overflow} weitere
+                            </button>
+                          )}
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               )
@@ -397,6 +577,17 @@ export function BookingsPage() {
           Überfällig
         </span>
       </div>}
+
+      {dayListDate && (
+        <DayBookingsModal
+          day={dayListDate}
+          bookings={filteredBookings}
+          today={today}
+          onClose={() => setDayListDate(null)}
+          onNew={handleNewBookingForDay}
+          onSelect={handleEditFromList}
+        />
+      )}
 
       <BookingDialog
         open={dialogOpen}
