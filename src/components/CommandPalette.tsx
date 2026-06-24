@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { Search, FileText, Calendar, Package, Users, UserCog } from 'lucide-react'
-import { useContracts } from '@/features/contracts'
+import { Search, Calendar, Package, Users, UserCog } from 'lucide-react'
 import { useBookingsForRange } from '@/features/bookings/hooks/useBookings'
 import { useResources } from '@/features/resources/hooks/useResources'
 import { useCustomers } from '@/features/customers'
@@ -30,7 +29,6 @@ export function CommandPalette() {
   const navigate = useNavigate()
 
   const now = new Date()
-  const { data: contracts = [] } = useContracts()
   const { data: bookings = [] } = useBookingsForRange(startOfMonth(now), endOfMonth(now))
   const { data: resources = [] } = useResources()
   const { data: customers = [] } = useCustomers()
@@ -58,20 +56,6 @@ export function CommandPalette() {
   const results: Result[] = useCallback(() => {
     if (!query.trim()) return []
     const q = query.toLowerCase()
-
-    const contractResults: Result[] = contracts
-      .filter((c) => {
-        const name = `${c.first_name} ${c.last_name}`.toLowerCase()
-        return name.includes(q) || String(c.contract_number).includes(q)
-      })
-      .slice(0, 4)
-      .map((c) => ({
-        id: `contract-${c.id}`,
-        label: `${c.first_name} ${c.last_name}`,
-        sub: `Vertrag #${String(c.contract_number).padStart(4, '0')}`,
-        icon: FileText,
-        href: '/contracts',
-      }))
 
     const bookingResults: Result[] = bookings
       .filter((b) => `${b.first_name} ${b.last_name}`.toLowerCase().includes(q))
@@ -109,8 +93,8 @@ export function CommandPalette() {
         href: '/customers',
       }))
 
-    return [...contractResults, ...bookingResults, ...resourceResults, ...customerResults]
-  }, [query, contracts, bookings, resources, customers])()
+    return [...bookingResults, ...resourceResults, ...customerResults]
+  }, [query, bookings, resources, customers])()
 
   useEffect(() => { setSelected(0) }, [results.length])
 
@@ -136,7 +120,7 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Suche nach Verträgen, Buchungen, Fahrzeugen, Kunden…"
+            placeholder="Suche nach Buchungen, Fahrzeugen, Kunden…"
             className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
           />
           <kbd className="text-xs text-muted-foreground border border-border rounded px-1.5 py-0.5 font-mono hidden sm:block">Esc</kbd>
@@ -170,7 +154,7 @@ export function CommandPalette() {
           </div>
         ) : (
           <div className="px-4 py-4 text-xs text-muted-foreground space-y-1">
-            <p>Suche über Verträge, Buchungen, Fahrzeuge und Kunden</p>
+            <p>Suche über Buchungen, Fahrzeuge und Kunden</p>
           </div>
         )}
 

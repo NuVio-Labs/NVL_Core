@@ -73,7 +73,7 @@ export function CustomersPage() {
         <EmptyState
           icon={Users}
           title="Noch keine Kunden vorhanden"
-          description="Lege Kunden an um sie Buchungen und Verträgen zuzuordnen."
+          description="Lege Kunden an um sie Buchungen zuzuordnen."
           action={canManage ? (
             <button
               onClick={handleNew}

@@ -63,14 +63,13 @@ interface Props {
   booking?: Booking | BookingWithCreator
   initialDate?: Date
   onClose: () => void
-  onCreateContract?: (booking: Booking | BookingWithCreator) => void
 }
 
 function formatPrice(v: number) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(v)
 }
 
-export function BookingDialog({ open, booking, initialDate, onClose, onCreateContract }: Props) {
+export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   const { data: resources = [] } = useResources()
   const { data: priceLists = [] } = usePriceLists()
   const { data: durationMappings = [] } = useDurationTariffMappings()
@@ -703,15 +702,6 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
                   className="px-4 py-2 text-sm rounded-md border border-destructive text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                 >
                   Stornieren
-                </button>
-              )}
-              {booking && onCreateContract && booking.status !== 'cancelled' && (
-                <button
-                  type="button"
-                  onClick={() => { onClose(); onCreateContract(booking) }}
-                  className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors"
-                >
-                  Vertrag anlegen
                 </button>
               )}
             </div>

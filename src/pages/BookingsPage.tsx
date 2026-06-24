@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Search, X, LayoutList, CalendarDays, FileText, CheckCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, LayoutList, CalendarDays } from 'lucide-react'
 import { useBookingsByMonth } from '@/features/bookings/hooks/useBookings'
 import { BookingDialog } from '@/features/bookings/components/BookingDialog'
-import { ContractDialog } from '@/features/contracts/components/ContractDialog'
-import { useContracts } from '@/features/contracts'
 import type { BookingWithCreator } from '@/features/bookings/types'
 import { cn } from '@/lib/utils'
 
@@ -57,11 +55,9 @@ function formatDateTime(iso: string): string {
   })
 }
 
-function BookingChip({ booking, today, hasContract, contractNumber, onClick }: {
+function BookingChip({ booking, today, onClick }: {
   booking: BookingWithCreator
   today: Date
-  hasContract?: boolean
-  contractNumber?: number
   onClick: (b: BookingWithCreator, e: React.MouseEvent) => void
 }) {
   const [hovered, setHovered] = useState(false)
@@ -79,7 +75,6 @@ function BookingChip({ booking, today, hasContract, contractNumber, onClick }: {
         )}
       >
         <span className="truncate">{booking.first_name} {booking.last_name}</span>
-        {hasContract && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-green-500 ml-auto" />}
       </div>
       {hovered && (
         <div
@@ -92,11 +87,6 @@ function BookingChip({ booking, today, hasContract, contractNumber, onClick }: {
           )}
           <p className="text-muted-foreground">Von: {formatDateTime(booking.starts_at)}</p>
           <p className="text-muted-foreground">Bis: {formatDateTime(booking.ends_at)}</p>
-          {hasContract && contractNumber !== undefined && (
-            <p className="text-green-700 font-medium pt-1 border-t border-border">
-              Vertrag #{String(contractNumber).padStart(4, '0')} vorhanden
-            </p>
-          )}
           {booking.creator && (
             <p className="text-muted-foreground pt-1 border-t border-border">
               Angelegt von: {booking.creator.full_name ?? booking.creator.email}
@@ -126,19 +116,8 @@ export function BookingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
   const [editingBooking, setEditingBooking] = useState<BookingWithCreator | undefined>()
-  const [contractPrefill, setContractPrefill] = useState<BookingWithCreator | undefined>()
-  const [contractDialogOpen, setContractDialogOpen] = useState(false)
 
   const { data: bookings = [], isLoading } = useBookingsByMonth(year, month)
-  const { data: contracts = [] } = useContracts()
-
-  const contractByBooking = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const c of contracts) {
-      if (c.booking_id) map.set(c.booking_id, c.contract_number)
-    }
-    return map
-  }, [contracts])
 
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'alle' | 'active' | 'ending-today' | 'overdue'>('alle')
@@ -305,7 +284,6 @@ export function BookingsPage() {
                   <th className="text-left px-4 py-3 font-medium">Bis</th>
                   <th className="text-left px-4 py-3 font-medium">Status</th>
                   <th className="text-left px-4 py-3 font-medium">Angelegt von</th>
-                  <th className="px-4 py-3 w-10" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -330,24 +308,6 @@ export function BookingsPage() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {b.creator ? (b.creator.full_name ?? b.creator.email) : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        {contractByBooking.has(b.id) ? (
-                          <span
-                            title={`Vertrag #${String(contractByBooking.get(b.id)!).padStart(4, '0')} vorhanden`}
-                            className="flex items-center justify-center text-green-600"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </span>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setContractPrefill(b); setContractDialogOpen(true) }}
-                            title="Vertrag anlegen"
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
-                        )}
                       </td>
                     </tr>
                   )
@@ -405,8 +365,6 @@ export function BookingsPage() {
                         key={b.id}
                         booking={b}
                         today={today}
-                        hasContract={contractByBooking.has(b.id)}
-                        contractNumber={contractByBooking.get(b.id)}
                         onClick={handleBookingClick}
                       />
                     ))}
@@ -445,13 +403,6 @@ export function BookingsPage() {
         booking={editingBooking}
         initialDate={selectedDate}
         onClose={handleClose}
-        onCreateContract={(b) => { setContractPrefill(b as BookingWithCreator); setContractDialogOpen(true) }}
-      />
-
-      <ContractDialog
-        open={contractDialogOpen}
-        prefillBooking={contractPrefill}
-        onClose={() => { setContractDialogOpen(false); setContractPrefill(undefined) }}
       />
     </div>
   )
