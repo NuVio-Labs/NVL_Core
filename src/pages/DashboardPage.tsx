@@ -239,10 +239,12 @@ export function DashboardPage() {
 
   // Fleet status
   const fleetStatus = useMemo(() => {
+    // "Vermietet" = Fahrzeuge, die HEUTE (irgendwann am Tag) gebucht sind,
+    // nicht nur exakt im aktuellen Moment. Überlappung mit dem heutigen Tag.
     const activeBookings = todayBookings.filter((b) => {
       const s = new Date(b.starts_at)
       const e = new Date(b.ends_at)
-      return s <= now && e >= now
+      return s <= todayEnd && e >= todayStart
     })
     const bookedIds = new Set(activeBookings.map((b) => b.resource_id))
 
@@ -262,7 +264,7 @@ export function DashboardPage() {
       }
     }
     return { verfuegbar, vermietet, werkstatt }
-  }, [todayBookings, resources])
+  }, [todayBookings, resources, todayStart, todayEnd])
 
   // Umsatz Monat (price_snapshot)
   const monatsumsatz = useMemo(() => {
