@@ -25,62 +25,83 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-sm space-y-6 p-8 border border-border rounded-lg bg-background shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">NuVio Core</h1>
-          <p className="text-muted-foreground text-sm mt-1">Melde dich an</p>
-        </div>
+    <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+      {/* Dekorative weiche Farbflächen für den Glaseffekt */}
+      <div className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-indigo-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-24 h-[28rem] w-[28rem] rounded-full bg-sky-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-200/30 blur-3xl" />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium" htmlFor="identifier">Benutzername oder E-Mail</label>
-            <input
-              id="identifier"
-              type="text"
-              autoComplete="username"
-              required
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium" htmlFor="password">Passwort</label>
-              <Link to="/forgot-password" className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                Passwort vergessen?
-              </Link>
+      <div className="relative w-full max-w-sm">
+        <div className="rounded-2xl border border-white/60 bg-white/60 p-8 shadow-xl shadow-slate-900/5 backdrop-blur-xl ring-1 ring-white/40">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white shadow-lg shadow-slate-900/20">
+              N
             </div>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">NuVio Core</h1>
+            <p className="mt-1 text-sm text-slate-500">Melde dich an</p>
           </div>
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700" htmlFor="identifier">
+                Benutzername oder E-Mail
+              </label>
+              <input
+                id="identifier"
+                type="text"
+                autoComplete="username"
+                required
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                className="w-full rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-slate-900/20 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
-            {isLoading ? 'Anmelden…' : 'Anmelden'}
-          </button>
-        </form>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700" htmlFor="password">
+                  Passwort
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-slate-500 underline-offset-4 transition hover:text-slate-900 hover:underline"
+                >
+                  Passwort vergessen?
+                </Link>
+              </div>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-slate-900/20 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+              />
+            </div>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Noch kein Konto?{' '}
-          <Link to="/signup" className="underline underline-offset-4 text-foreground">
-            Registrieren
-          </Link>
-        </p>
+            {error && (
+              <p className="rounded-lg bg-red-50/80 px-3 py-2 text-sm text-red-600 ring-1 ring-red-100">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 active:scale-[0.99] disabled:opacity-50"
+            >
+              {isLoading ? 'Anmelden…' : 'Anmelden'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-slate-500">
+            Noch kein Konto?{' '}
+            <Link to="/signup" className="font-medium text-slate-900 underline-offset-4 hover:underline">
+              Registrieren
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )
