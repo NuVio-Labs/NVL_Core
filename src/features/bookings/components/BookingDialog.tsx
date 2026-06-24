@@ -425,11 +425,27 @@ export function BookingDialog({ open, booking, initialDate, onClose, onCreateCon
                   const m = (r.metadata ?? {}) as Record<string, unknown>
                   return String(m.preis_gruppe ?? m[preisgruppeFeld] ?? 'Z')
                 }
+                const typ = (r: Resource) => {
+                  const m = (r.metadata ?? {}) as Record<string, unknown>
+                  const sitze = Number(m.sitze)
+                  if (Number.isFinite(sitze) && sitze >= 8) return `${sitze}-Sitzer`
+                  // preis_gruppe ist z.B. "C_Transporter" / "A_Anhaenger" — Teil nach "_" ist der Typ
+                  const suffix = String(m.preis_gruppe ?? '').split('_').pop() ?? ''
+                  const map: Record<string, string> = {
+                    Anhaenger: 'Anhänger',
+                    LKW: 'LKW',
+                    Transporter: 'Transporter',
+                    PKW: 'PKW',
+                  }
+                  return map[suffix] ?? ''
+                }
                 const label = (r: Resource) => {
                   const m = (r.metadata ?? {}) as Record<string, unknown>
                   const kz = m.kennzeichen ? ` (${m.kennzeichen})` : ''
                   const loc = m.standort ? ` — ${m.standort}` : ''
-                  return `${r.name}${kz}${loc}`
+                  const t = typ(r)
+                  const tStr = t ? ` · ${t}` : ''
+                  return `${r.name}${kz}${tStr}${loc}`
                 }
                 const sorted = [...active].sort((a, b) => byGroup(a).localeCompare(byGroup(b)))
 

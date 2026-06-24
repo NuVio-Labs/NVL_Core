@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Tag,
   Settings,
-  FileText,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { MembershipRole } from '@/features/workspace'
@@ -34,7 +33,6 @@ export const navigation: NavGroup[] = [
     label: 'Betrieb',
     items: [
       { label: 'Buchungen', path: '/bookings', icon: CalendarDays },
-      { label: 'Verträge', path: '/contracts', icon: FileText },
       { label: 'Ressourcen', path: '/resources', icon: Package },
       { label: 'Preislisten', path: '/pricing', icon: Tag },
     ],

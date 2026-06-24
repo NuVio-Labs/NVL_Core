@@ -8,11 +8,71 @@ export type Json =
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
-  // instead of failed to connect as temp role: failed to connect to `host=aws-1-eu-central-1.pooler.supabase.com user=cli_login_postgres.rxllsbnkusuyndwpnoav database=postgres`: server error (FATAL: Authentication error, reason: "Unsupported or invalid secret format", context: Handshake (SQLSTATE XX000))
-Retry (3/8): failed to connect as temp role: failed to connect to `host=aws-1-eu-central-1.pooler.supabase.com user=cli_login_postgres.rxllsbnkusuyndwpnoav database=postgres`: server error (FATAL: Authentication error, reason: "Unsupported or invalid secret format", context: Handshake (SQLSTATE XX000))
-Retry (4/8): failed to connect as temp role: failed to connect to `host=aws-1-eu-central-1.pooler.supabase.com user=cli_login_postgres.rxllsbnkusuyndwpnoav database=postgres`: server error (FATAL: Authentication error, reason: "Unsupported or invalid secret format", context: Handshake (SQLSTATE XX000))
-Connect to your database by setting the env var correctly: SUPABASE_DB_PASSWORD
-_at?: string
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          company_id: string
+          created_at: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          profile_id: string | null
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          action: string
+          company_id: string
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          profile_id?: string | null
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          profile_id?: string | null
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_field_definitions: {
+        Row: {
+          company_id: string
+          created_at: string
+          field_type: Database["public"]["Enums"]["resource_field_type"]
+          id: string
+          is_required: boolean
+          label: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
           field_type?: Database["public"]["Enums"]["resource_field_type"]
           id?: string
           is_required?: boolean
@@ -180,6 +240,56 @@ _at?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      company_files: {
+        Row: {
+          company_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          label: string | null
+          mime_type: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          label?: string | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          label?: string | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_files_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_permission_overrides: {
         Row: {
@@ -551,6 +661,47 @@ _at?: string
           },
         ]
       }
+      locations: {
+        Row: {
+          address: string | null
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memberships: {
         Row: {
           company_id: string
@@ -744,6 +895,7 @@ _at?: string
           id: string
           platform_role: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -753,6 +905,7 @@ _at?: string
           id: string
           platform_role?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -762,6 +915,7 @@ _at?: string
           id?: string
           platform_role?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -909,6 +1063,7 @@ _at?: string
       [_ in never]: never
     }
     Functions: {
+      get_email_for_username: { Args: { p_username: string }; Returns: string }
       get_my_role: { Args: { p_company_id: string }; Returns: string }
       is_platform_owner: { Args: never; Returns: boolean }
       next_contract_number: { Args: { p_company_id: string }; Returns: number }
@@ -1048,9 +1203,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       membership_role: ["owner", "admin", "member", "viewer", "editor", "user"],

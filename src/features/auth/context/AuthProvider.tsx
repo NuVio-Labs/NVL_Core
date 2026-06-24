@@ -45,7 +45,7 @@ export function AuthProvider({ children }: Props) {
         user,
         profile,
         isLoading,
-        signIn: authService.signInWithPassword,
+        signIn: authService.signInWithIdentifier,
         signOut: authService.signOut,
       }}
     >

@@ -26,6 +26,10 @@ function buildSchema(definitions: StaffFieldDefinition[]) {
   }
   return z.object({
     full_name: z.string().min(1, 'Name ist erforderlich'),
+    username: z
+      .string()
+      .min(3, 'Mindestens 3 Zeichen')
+      .regex(/^[a-zA-Z0-9._-]+$/, 'Nur Buchstaben, Zahlen, . _ -'),
     password: z.string().min(8, 'Mindestens 8 Zeichen'),
     password_confirm: z.string(),
     location: z.string().optional(),
@@ -38,6 +42,7 @@ function buildSchema(definitions: StaffFieldDefinition[]) {
 
 type FormValues = {
   full_name: string
+  username: string
   password: string
   password_confirm: string
   location?: string
@@ -83,8 +88,19 @@ export function OnboardingPage() {
       const { error: pwError } = await supabase.auth.updateUser({ password: values.password })
       if (pwError) throw pwError
 
-      // Profil-Name aktualisieren
-      await supabase.from('profiles').update({ full_name: values.full_name }).eq('id', user.id)
+      // Profil-Name + Benutzername aktualisieren
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ full_name: values.full_name, username: values.username })
+        .eq('id', user.id)
+      if (profileError) {
+        // 23505 = unique_violation (Benutzername bereits vergeben)
+        if (profileError.code === '23505') {
+          setServerError('Dieser Benutzername ist bereits vergeben.')
+          return
+        }
+        throw profileError
+      }
 
       // Membership aktivieren + Felder speichern
       await staffService.updateMember(activeMembership.id, {
@@ -123,6 +139,19 @@ export function OnboardingPage() {
               className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {errors.full_name && <p className="text-xs text-destructive">{errors.full_name.message}</p>}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Benutzername</label>
+            <input
+              {...register('username')}
+              type="text"
+              autoComplete="username"
+              placeholder="z.B. max.mustermann"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">Damit meldest du dich künftig an.</p>
+            {errors.username && <p className="text-xs text-destructive">{errors.username.message}</p>}
           </div>
 
           <div className="space-y-1">

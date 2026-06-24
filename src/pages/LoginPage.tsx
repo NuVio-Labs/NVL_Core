@@ -5,7 +5,7 @@ import { useAuth } from '@/features/auth'
 export function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -15,10 +15,10 @@ export function LoginPage() {
     setError(null)
     setIsLoading(true)
     try {
-      await signIn(email, password)
+      await signIn(identifier, password)
       navigate('/', { replace: true })
     } catch {
-      setError('E-Mail oder Passwort ungültig.')
+      setError('Benutzername/E-Mail oder Passwort ungültig.')
     } finally {
       setIsLoading(false)
     }
@@ -34,14 +34,14 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium" htmlFor="email">E-Mail</label>
+            <label className="text-sm font-medium" htmlFor="identifier">Benutzername oder E-Mail</label>
             <input
-              id="email"
-              type="email"
-              autoComplete="email"
+              id="identifier"
+              type="text"
+              autoComplete="username"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>

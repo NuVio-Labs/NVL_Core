@@ -35,3 +35,6 @@ coverage/
 
 # Supabase
 supabase/.temp/
+
+# Claude Code local tooling
+.claude/

@@ -25,7 +25,7 @@ Jede Änderung in diesem Repository soll NuVio Core näher an dieses Ziel bringe
 
 Wichtig:
 Nicht nur funktional richtig bauen.  
-Sondern **strukturell richtig**.
+Sondern **strukturell richtig und dsgvo konform und sicher**.
 
 ---
 

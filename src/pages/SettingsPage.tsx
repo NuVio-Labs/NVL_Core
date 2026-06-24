@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, MapPin, Upload, Building2 } from 'lucide-react'
 import { useLocations, useCreateLocation, useUpdateLocation, useDeleteLocation } from '@/features/locations'
 import type { Location } from '@/features/locations'
 import { fileService } from '@/features/files/service/fileService'
+import { FileManager } from '@/features/files/components/FileManager'
 import { supabase } from '@/lib/supabase'
 import { useWorkspace, useCan, useCompanySettings, useUpdateCompanySettings, usePermissionOverrides, useUpsertPermissionOverride, useRemovePermissionOverride } from '@/features/workspace'
 import type { PermissionOverrideWithId } from '@/features/workspace/hooks/usePermissionOverrides'
@@ -41,7 +42,7 @@ import type { StaffFieldDefinition } from '@/features/staff/types'
 import { usePriceListItemFieldDefinitionsByCompany } from '@/features/pricing/hooks/usePriceListItemFieldDefinitions'
 import { useAuth } from '@/features/auth'
 
-type Tab = 'profil' | 'allgemein' | 'standorte' | 'ressourcenfelder' | 'buchungsfelder' | 'mitarbeiterfelder' | 'dauer' | 'berechtigungen'
+type Tab = 'profil' | 'allgemein' | 'standorte' | 'ressourcenfelder' | 'buchungsfelder' | 'mitarbeiterfelder' | 'dauer' | 'berechtigungen' | 'dokumente'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'profil', label: 'Profil' },
@@ -51,6 +52,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'buchungsfelder', label: 'Buchungsfelder' },
   { id: 'mitarbeiterfelder', label: 'Mitarbeiterfelder' },
   { id: 'dauer', label: 'Dauer & Tarife' },
+  { id: 'dokumente', label: 'Dokumente' },
   { id: 'berechtigungen', label: 'Berechtigungen' },
 ]
 
@@ -444,7 +446,7 @@ function CompanyLogoSection() {
 }
 
 export function SettingsPage() {
-  const { activeRole } = useWorkspace()
+  const { activeRole, activeCompanyId } = useWorkspace()
   const can = useCan()
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('profil')
@@ -971,6 +973,18 @@ export function SettingsPage() {
           onUpdate={(id, payload) => updateDurMapping.mutateAsync({ id, payload })}
           onDelete={(id) => deleteDurMapping.mutateAsync(id)}
         />
+      )}
+
+      {activeTab === 'dokumente' && activeCompanyId && (
+        <div className="space-y-4 max-w-2xl">
+          <div>
+            <h2 className="text-base font-semibold">Mandanten-Dokumente</h2>
+            <p className="text-muted-foreground text-sm">
+              Dokumente die zum Mandanten gehören — z.B. Blanko-Mietverträge, Templates, interne Unterlagen.
+            </p>
+          </div>
+          <FileManager entityType="company" entityId={activeCompanyId} />
+        </div>
       )}
 
       {activeTab === 'berechtigungen' && (
