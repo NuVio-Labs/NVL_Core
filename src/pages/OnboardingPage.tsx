@@ -50,8 +50,8 @@ type FormValues = {
 }
 
 export function OnboardingPage() {
-  const { user } = useAuth()
-  const { activeMembership, activeCompanyId, refreshMemberships } = useWorkspace()
+  const { user, isLoading: authLoading } = useAuth()
+  const { activeMembership, activeCompanyId, refreshMemberships, isLoading: workspaceLoading } = useWorkspace()
   const navigate = useNavigate()
   const { data: fieldDefinitions = [] } = useStaffFieldDefinitions()
   const [serverError, setServerError] = useState<string | null>(null)
@@ -71,6 +71,10 @@ export function OnboardingPage() {
   })
 
   useEffect(() => {
+    // Warten bis Session (inkl. Invite-Token aus der URL) + Workspace geladen sind.
+    // Sonst würde ein noch nicht verarbeiteter Invite-Link fälschlich auf /login leiten.
+    if (authLoading || workspaceLoading) return
+
     if (!user) {
       navigate('/login', { replace: true })
       return
@@ -78,7 +82,7 @@ export function OnboardingPage() {
     if (activeMembership && activeMembership.status !== 'invited') {
       navigate('/', { replace: true })
     }
-  }, [user, activeMembership, navigate])
+  }, [user, activeMembership, navigate, authLoading, workspaceLoading])
 
   async function onSubmit(values: FormValues) {
     if (!activeMembership || !activeCompanyId || !user) return
@@ -118,6 +122,15 @@ export function OnboardingPage() {
   }
 
   const metaErrors = (errors.metadata ?? {}) as Record<string, { message?: string }>
+
+  // Während Session/Workspace laden: nicht das Formular zeigen und nicht voreilig umleiten.
+  if (authLoading || workspaceLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <span className="text-muted-foreground text-sm">Laden…</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
