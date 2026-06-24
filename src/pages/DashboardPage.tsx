@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Plus, Car, CalendarDays, Users, AlertTriangle, ChevronRight, MapPin, CheckCircle2, X } from 'lucide-react'
+import { Plus, Car, CalendarDays, Users, AlertTriangle, MapPin, CheckCircle2, X, ArrowDownToLine, ArrowUpFromLine, Clock, Euro } from 'lucide-react'
 import { useAuth } from '@/features/auth'
-import { useWorkspace, useCan } from '@/features/workspace'
+import { useWorkspace } from '@/features/workspace'
 import { useBookingsForRange } from '@/features/bookings/hooks/useBookings'
 import { useResources, useUpdateResource } from '@/features/resources/hooks/useResources'
 import { useStaffMembers } from '@/features/staff/hooks/useStaff'
@@ -58,6 +58,10 @@ function formatPrice(v: number) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(v)
 }
 
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
 function KpiCard({ label, value, sub, icon: Icon, accent }: {
   label: string
   value: string | number
@@ -83,6 +87,27 @@ function SectionHeader({ title }: { title: string }) {
   return <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
 }
 
+/** Liste mit Buchungen, deren Abhol- ODER Rückgabezeit fokussiert wird. */
+function MovementRow({ booking, resources, mode }: { booking: Booking; resources: Resource[]; mode: 'pickup' | 'return' }) {
+  const resource = resources.find((r) => r.id === booking.resource_id)
+  const time = mode === 'pickup' ? booking.starts_at : booking.ends_at
+  const overdue = mode === 'return' && new Date(booking.ends_at) < new Date()
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
+        <p className="text-xs text-muted-foreground truncate">{resource?.name ?? '—'}</p>
+      </div>
+      <span className={cn(
+        'text-xs font-medium px-2 py-0.5 rounded-full shrink-0',
+        overdue ? 'bg-red-100 text-destructive' : 'bg-muted text-muted-foreground',
+      )}>
+        {formatTime(time)}{overdue ? ' · überfällig' : ''}
+      </span>
+    </div>
+  )
+}
+
 function BookingRow({ booking, resources }: { booking: Booking; resources: Resource[] }) {
   const resource = resources.find((r) => r.id === booking.resource_id)
   const now = new Date()
@@ -95,9 +120,7 @@ function BookingRow({ booking, resources }: { booking: Booking; resources: Resou
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">
-          {booking.first_name} {booking.last_name}
-        </p>
+        <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
         <p className="text-xs text-muted-foreground truncate">
           {resource?.name ?? '—'} · {formatDate(booking.starts_at)} {formatTime(booking.starts_at)} – {formatDate(booking.ends_at)} {formatTime(booking.ends_at)}
         </p>
@@ -120,17 +143,18 @@ function BookingRow({ booking, resources }: { booking: Booking; resources: Resou
 function HuRow({ resource }: { resource: Resource }) {
   const meta = (resource.metadata ?? {}) as Record<string, unknown>
   const huStr = meta.hauptuntersuchung as string | undefined
+
+  const [confirming, setConfirming] = useState(false)
+  const [newDate, setNewDate] = useState('')
+  const [saving, setSaving] = useState(false)
+  const updateResource = useUpdateResource()
+
   if (!huStr) return null
 
   const huDate = new Date(huStr)
   const now = new Date()
   const daysLeft = Math.ceil((huDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
   const expired = daysLeft < 0
-
-  const [confirming, setConfirming] = useState(false)
-  const [newDate, setNewDate] = useState('')
-  const [saving, setSaving] = useState(false)
-  const updateResource = useUpdateResource()
 
   async function handleSave() {
     if (!newDate) return
@@ -169,10 +193,7 @@ function HuRow({ resource }: { resource: Resource }) {
               <CheckCircle2 className="w-3 h-3" />
               {saving ? '…' : 'Speichern'}
             </button>
-            <button
-              onClick={() => { setConfirming(false); setNewDate('') }}
-              className="text-muted-foreground hover:text-foreground"
-            >
+            <button onClick={() => { setConfirming(false); setNewDate('') }} className="text-muted-foreground hover:text-foreground">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -186,10 +207,7 @@ function HuRow({ resource }: { resource: Resource }) {
           )}>
             {expired ? `${Math.abs(daysLeft)}T überfällig` : `${daysLeft}T`}
           </span>
-          <button
-            onClick={() => setConfirming(true)}
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-          >
+          <button onClick={() => setConfirming(true)} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
             HU erneuern
           </button>
         </div>
@@ -198,14 +216,71 @@ function HuRow({ resource }: { resource: Resource }) {
   )
 }
 
+/** Wiederverwendbarer Listen-Container mit Titel + Badge + Leer-Text. */
+function ListCard({ title, badge, empty, children }: {
+  title: string
+  badge?: number
+  empty: string
+  children?: React.ReactNode
+}) {
+  const hasContent = Array.isArray(children) ? children.length > 0 : !!children
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <SectionHeader title={title} />
+        {badge !== undefined && badge > 0 && (
+          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{badge}</span>
+        )}
+      </div>
+      <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
+        {hasContent ? <div className="max-h-[260px] overflow-y-auto">{children}</div> : (
+          <p className="px-4 py-6 text-sm text-muted-foreground text-center">{empty}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FleetOverview({ fleetStatus, total }: { fleetStatus: { verfuegbar: number; vermietet: number; werkstatt: number }; total: number }) {
+  return (
+    <div className="space-y-3">
+      <SectionHeader title="Flotte Übersicht" />
+      <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
+        {[
+          { label: 'Verfügbar', value: fleetStatus.verfuegbar, color: 'bg-green-500' },
+          { label: 'Vermietet', value: fleetStatus.vermietet, color: 'bg-blue-500' },
+          { label: 'Werkstatt', value: fleetStatus.werkstatt, color: 'bg-yellow-500' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0">
+            <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', color)} />
+            <span className="text-sm flex-1">{label}</span>
+            <span className="text-sm font-semibold tabular-nums">{value}</span>
+            <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
+              {total > 0 ? Math.round((value / total) * 100) : 0}%
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center gap-3 px-4 py-3 border-t border-border bg-muted/30">
+          <span className="text-xs text-muted-foreground flex-1">Gesamt</span>
+          <span className="text-sm font-semibold tabular-nums">{total}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function DashboardPage() {
   const { profile } = useAuth()
-  const { activeCompany, activeMembership } = useWorkspace()
-  const can = useCan()
+  const { activeCompany, activeMembership, activeRole } = useWorkspace()
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [bookingPeriod, setBookingPeriod] = useState<'today' | 'week' | 'month'>('today')
 
-  const isAdmin = can('company.settings', 'read')
+  // Rollen — Umsatzdaten NUR für Admin. Owner zählt als Admin.
+  const role = activeRole
+  const isAdmin = role === 'admin' || role === 'owner'
+  const isEditor = role === 'editor'
+  const isStaff = role === 'user' || role === 'member' || role === 'viewer'
+  const canManage = isAdmin || isEditor
 
   const now = new Date()
   const todayStart = startOfDay(now)
@@ -221,69 +296,84 @@ export function DashboardPage() {
   const { data: resources = [] } = useResources()
   const { data: staffMembers = [] } = useStaffMembers()
 
-  const canManage = can('bookings', 'create')
-
-  // Fleet status
+  // Flottenstatus (heute gebucht = vermietet)
   const fleetStatus = useMemo(() => {
-    // "Vermietet" = Fahrzeuge, die HEUTE (irgendwann am Tag) gebucht sind,
-    // nicht nur exakt im aktuellen Moment. Überlappung mit dem heutigen Tag.
-    const activeBookings = todayBookings.filter((b) => {
-      const s = new Date(b.starts_at)
-      const e = new Date(b.ends_at)
-      return s <= todayEnd && e >= todayStart
-    })
-    const bookedIds = new Set(activeBookings.map((b) => b.resource_id))
-
-    let verfuegbar = 0
-    let vermietet = 0
-    let werkstatt = 0
-
+    const bookedIds = new Set(
+      todayBookings
+        .filter((b) => new Date(b.starts_at) <= todayEnd && new Date(b.ends_at) >= todayStart)
+        .map((b) => b.resource_id),
+    )
+    let verfuegbar = 0, vermietet = 0, werkstatt = 0
     for (const r of resources) {
-      const meta = (r.metadata ?? {}) as Record<string, unknown>
-      const standort = String(meta.standort ?? '').toLowerCase()
-      if (standort === 'werkstatt') {
-        werkstatt++
-      } else if (bookedIds.has(r.id)) {
-        vermietet++
-      } else {
-        verfuegbar++
-      }
+      const standort = String(((r.metadata ?? {}) as Record<string, unknown>).standort ?? '').toLowerCase()
+      if (standort === 'werkstatt') werkstatt++
+      else if (bookedIds.has(r.id)) vermietet++
+      else verfuegbar++
     }
     return { verfuegbar, vermietet, werkstatt }
   }, [todayBookings, resources, todayStart, todayEnd])
 
-  // Umsatz Monat (price_snapshot)
-  const monatsumsatz = useMemo(() => {
-    return monthBookings.reduce((sum, b) => sum + (b.price_snapshot ?? 0), 0)
-  }, [monthBookings])
+  // Heutige Abholungen / Rückgaben (aus Wochendaten, damit auch heute startende/endende sicher dabei sind)
+  const todayPickups = useMemo(
+    () => weekBookings
+      .filter((b) => b.status !== 'cancelled' && isSameDay(new Date(b.starts_at), now))
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
+    [weekBookings],
+  )
+  const todayReturns = useMemo(
+    () => weekBookings
+      .filter((b) => b.status !== 'cancelled' && isSameDay(new Date(b.ends_at), now))
+      .sort((a, b) => new Date(a.ends_at).getTime() - new Date(b.ends_at).getTime()),
+    [weekBookings],
+  )
 
-  // HU-Warnungen
+  // Aktive Vermietungen (läuft gerade)
+  const activeRentals = useMemo(
+    () => todayBookings.filter((b) => b.status !== 'cancelled' && new Date(b.starts_at) <= now && new Date(b.ends_at) >= now),
+    [todayBookings],
+  )
+
+  // Überfällige Rückgaben (Endzeit in Vergangenheit, nicht storniert)
+  const overdueReturns = useMemo(
+    () => monthBookings
+      .filter((b) => b.status !== 'cancelled' && new Date(b.ends_at) < now)
+      .sort((a, b) => new Date(a.ends_at).getTime() - new Date(b.ends_at).getTime()),
+    [monthBookings],
+  )
+
+  // Umsätze — nur für Admin berechnet (gar nicht erst für andere Rollen)
+  const monatsumsatz = useMemo(
+    () => isAdmin ? monthBookings.reduce((sum, b) => sum + (b.price_snapshot ?? 0), 0) : 0,
+    [monthBookings, isAdmin],
+  )
+  const tagesumsatz = useMemo(
+    () => isAdmin ? todayBookings.reduce((sum, b) => sum + (b.price_snapshot ?? 0), 0) : 0,
+    [todayBookings, isAdmin],
+  )
+
+  // HU-/Wartungs-Warnungen
   const huWarnungen = useMemo(() => {
     const warnDate = new Date(now.getTime() + HU_WARN_DAYS * 24 * 60 * 60 * 1000)
     return resources
       .filter((r) => {
-        const meta = (r.metadata ?? {}) as Record<string, unknown>
-        const huStr = meta.hauptuntersuchung as string | undefined
-        if (!huStr) return false
-        const huDate = new Date(huStr)
-        return huDate <= warnDate
+        const huStr = ((r.metadata ?? {}) as Record<string, unknown>).hauptuntersuchung as string | undefined
+        return huStr ? new Date(huStr) <= warnDate : false
       })
       .sort((a, b) => {
-        const ma = (a.metadata ?? {}) as Record<string, unknown>
-        const mb = (b.metadata ?? {}) as Record<string, unknown>
-        return new Date(ma.hauptuntersuchung as string).getTime() - new Date(mb.hauptuntersuchung as string).getTime()
+        const ha = ((a.metadata ?? {}) as Record<string, unknown>).hauptuntersuchung as string
+        const hb = ((b.metadata ?? {}) as Record<string, unknown>).hauptuntersuchung as string
+        return new Date(ha).getTime() - new Date(hb).getTime()
       })
   }, [resources])
 
-  // Buchungen heute — Admin sieht alle, Mitarbeiter nur eigene
-  const todayEvents = useMemo(() => {
-    const filtered = isAdmin
-      ? todayBookings
-      : todayBookings.filter((b) => b.created_by === activeMembership?.profile_id)
-    return [...filtered].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-  }, [todayBookings, isAdmin, activeMembership])
+  // Termine für Mitarbeiter — eigene heutige Buchungen
+  const myToday = useMemo(() => {
+    return [...todayBookings]
+      .filter((b) => b.created_by === activeMembership?.profile_id)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+  }, [todayBookings, activeMembership])
 
-  // Staff nach Standort gruppiert mit Namen
+  // Mitarbeiter nach Standort (Admin)
   const staffByLocation = useMemo(() => {
     const map = new Map<string, typeof staffMembers>()
     for (const m of staffMembers) {
@@ -293,6 +383,8 @@ export function DashboardPage() {
     }
     return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length)
   }, [staffMembers])
+
+  const periodCount = bookingPeriod === 'today' ? todayBookings.length : bookingPeriod === 'week' ? weekBookings.length : monthBookings.length
 
   return (
     <div className="space-y-8">
@@ -305,130 +397,112 @@ export function DashboardPage() {
           </p>
         </div>
         {canManage && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setBookingDialogOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-4 h-4" />
-              Neue Buchung
-            </button>
-          </div>
+          <button
+            onClick={() => setBookingDialogOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" />
+            Neue Buchung
+          </button>
         )}
       </div>
 
-      {/* KPIs — Admin sieht alle 4, Mitarbeiter nur Fahrzeugstatus + eigene Buchungen */}
-      {isAdmin ? (
+      {/* ===== KPI-Karten je Rolle ===== */}
+      {isAdmin && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-lg border border-border bg-card p-5 flex flex-col gap-3">
-            <div className="flex items-start gap-4">
-              <div className="p-2.5 rounded-lg bg-blue-50 shrink-0">
-                <CalendarDays className="w-5 h-5 text-foreground" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Buchungen</p>
-                <p className="text-2xl font-bold mt-0.5">
-                  {bookingPeriod === 'today' ? todayBookings.length : bookingPeriod === 'week' ? weekBookings.length : monthBookings.length}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-1">
-              {(['today', 'week', 'month'] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setBookingPeriod(p)}
-                  className={cn(
-                    'flex-1 text-xs py-1 rounded font-medium transition-colors',
-                    bookingPeriod === p
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {p === 'today' ? 'Heute' : p === 'week' ? 'Woche' : 'Monat'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <KpiCard
-            label="Verfügbar"
-            value={fleetStatus.verfuegbar}
-            sub={`${fleetStatus.vermietet} vermietet · ${fleetStatus.werkstatt} Werkstatt`}
-            icon={Car}
-            accent="bg-green-50"
-          />
-          <KpiCard
-            label="Umsatz Monat"
-            value={formatPrice(monatsumsatz)}
-            sub={`${monthBookings.length} Buchungen`}
-            icon={ChevronRight}
-            accent="bg-purple-50"
-          />
-          <KpiCard
-            label="Mitarbeiter"
-            value={staffMembers.length}
-            sub={`${staffByLocation.length} Standort${staffByLocation.length !== 1 ? 'e' : ''}`}
-            icon={Users}
-            accent="bg-orange-50"
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          <KpiCard
-            label="Meine Buchungen heute"
-            value={todayEvents.length}
-            sub={activeMembership?.location ?? undefined}
-            icon={CalendarDays}
-            accent="bg-blue-50"
-          />
-          <KpiCard
-            label="Verfügbar"
-            value={fleetStatus.verfuegbar}
-            sub={`${fleetStatus.vermietet} vermietet · ${fleetStatus.werkstatt} Werkstatt`}
-            icon={Car}
-            accent="bg-green-50"
-          />
+          <KpiCard label="Umsatz Monat" value={formatPrice(monatsumsatz)} sub={`${monthBookings.length} Buchungen`} icon={Euro} accent="bg-purple-50" />
+          <KpiCard label="Umsatz heute" value={formatPrice(tagesumsatz)} sub={`${todayBookings.length} heute`} icon={Euro} accent="bg-purple-50" />
+          <KpiCard label="Verfügbar" value={fleetStatus.verfuegbar} sub={`${fleetStatus.vermietet} vermietet · ${fleetStatus.werkstatt} Werkstatt`} icon={Car} accent="bg-green-50" />
+          <KpiCard label="Mitarbeiter" value={staffMembers.length} sub={`${staffByLocation.length} Standort${staffByLocation.length !== 1 ? 'e' : ''}`} icon={Users} accent="bg-orange-50" />
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Buchungen heute */}
-        <div className="space-y-3">
-          <SectionHeader title={isAdmin ? 'Buchungen heute' : 'Meine Buchungen heute'} />
-          <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
-            {todayEvents.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-                {isAdmin ? 'Keine Buchungen heute.' : 'Keine eigenen Buchungen heute.'}
-              </p>
-            ) : (
-              todayEvents.map((b) => (
-                <BookingRow key={b.id} booking={b} resources={resources} />
-              ))
-            )}
+      {isEditor && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard label="Abholungen heute" value={todayPickups.length} icon={ArrowUpFromLine} accent="bg-blue-50" />
+          <KpiCard label="Rückgaben heute" value={todayReturns.length} icon={ArrowDownToLine} accent="bg-blue-50" />
+          <KpiCard label="Aktive Vermietungen" value={activeRentals.length} icon={Clock} accent="bg-green-50" />
+          <KpiCard label="Verfügbar" value={fleetStatus.verfuegbar} sub={`${fleetStatus.werkstatt} in Wartung`} icon={Car} accent="bg-green-50" />
+        </div>
+      )}
+
+      {isStaff && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard label="Meine Termine heute" value={myToday.length} sub={activeMembership?.location ?? undefined} icon={CalendarDays} accent="bg-blue-50" />
+          <KpiCard label="Abholungen heute" value={todayPickups.length} icon={ArrowUpFromLine} accent="bg-blue-50" />
+          <KpiCard label="Rückgaben heute" value={todayReturns.length} icon={ArrowDownToLine} accent="bg-blue-50" />
+          <KpiCard label="Verfügbar" value={fleetStatus.verfuegbar} sub={`${fleetStatus.werkstatt} in Wartung`} icon={Car} accent="bg-green-50" />
+        </div>
+      )}
+
+      {/* Buchungen-Periode (Admin) als eigener Block */}
+      {isAdmin && (
+        <div className="rounded-lg border border-border bg-card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-start gap-4 flex-1">
+            <div className="p-2.5 rounded-lg bg-blue-50 shrink-0"><CalendarDays className="w-5 h-5 text-foreground" /></div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Buchungen</p>
+              <p className="text-2xl font-bold mt-0.5">{periodCount}</p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            {(['today', 'week', 'month'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setBookingPeriod(p)}
+                className={cn('px-3 text-xs py-1.5 rounded font-medium transition-colors',
+                  bookingPeriod === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}
+              >
+                {p === 'today' ? 'Heute' : p === 'week' ? 'Woche' : 'Monat'}
+              </button>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* HU-Warnungen — nur Admin */}
-        {isAdmin && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <SectionHeader title="HU fällig / überfällig" />
-              {huWarnungen.length > 0 && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-                  {huWarnungen.length} Meldung{huWarnungen.length !== 1 ? 'en' : ''}
-                </span>
-              )}
-            </div>
-            <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
-              {huWarnungen.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground text-center">Keine HU-Warnungen.</p>
-              ) : (
-                <div className="overflow-y-auto max-h-[220px]">
-                  {huWarnungen.map((r) => <HuRow key={r.id} resource={r} />)}
-                </div>
-              )}
-            </div>
-          </div>
+      {/* ===== Widget-Grid ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Mitarbeiter: eigene Termine zuerst */}
+        {isStaff && (
+          <ListCard title="Meine Termine heute" badge={myToday.length} empty="Keine eigenen Termine heute.">
+            {myToday.map((b) => <BookingRow key={b.id} booking={b} resources={resources} />)}
+          </ListCard>
         )}
+
+        {/* Abholungen heute — alle Rollen */}
+        <ListCard title="Abholungen heute" badge={todayPickups.length} empty="Keine Abholungen heute.">
+          {todayPickups.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="pickup" />)}
+        </ListCard>
+
+        {/* Rückgaben heute — alle Rollen */}
+        <ListCard title="Rückgaben heute" badge={todayReturns.length} empty="Keine Rückgaben heute.">
+          {todayReturns.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="return" />)}
+        </ListCard>
+
+        {/* Aktive Vermietungen — Admin + Bearbeiter */}
+        {canManage && (
+          <ListCard title="Aktive Vermietungen" badge={activeRentals.length} empty="Keine aktiven Vermietungen.">
+            {activeRentals.map((b) => <BookingRow key={b.id} booking={b} resources={resources} />)}
+          </ListCard>
+        )}
+
+        {/* Überfällige Rückgaben — Admin + Bearbeiter */}
+        {canManage && (
+          <ListCard title="Überfällige Rückgaben" badge={overdueReturns.length} empty="Keine überfälligen Rückgaben.">
+            {overdueReturns.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="return" />)}
+          </ListCard>
+        )}
+
+        {/* TÜV / Wartung — Admin + Bearbeiter */}
+        {canManage && (
+          <ListCard title="TÜV fällig / überfällig" badge={huWarnungen.length} empty="Keine TÜV-Warnungen.">
+            {huWarnungen.map((r) => <HuRow key={r.id} resource={r} />)}
+          </ListCard>
+        )}
+
+        {/* Flotte — alle Rollen */}
+        <FleetOverview fleetStatus={fleetStatus} total={resources.length} />
 
         {/* Mitarbeiter nach Standort — nur Admin */}
         {isAdmin && (
@@ -441,60 +515,35 @@ export function DashboardPage() {
               {staffByLocation.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground text-center">Keine Mitarbeiter.</p>
               ) : (
-                staffByLocation.map(([loc, members]) => (
-                  <div key={loc}>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border">
-                      <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{loc}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">{members.length} MA</span>
-                    </div>
-                    {members.map((m: StaffMembership) => (
-                      <div key={m.id} className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {m.profile.full_name ?? m.profile.email}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">{m.profile.email}</p>
-                        </div>
-                        <span className="ml-3 shrink-0 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                          {ROLE_LABELS[m.role] ?? m.role}
-                        </span>
+                <div className="max-h-[260px] overflow-y-auto">
+                  {staffByLocation.map(([loc, members]) => (
+                    <div key={loc}>
+                      <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border">
+                        <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{loc}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{members.length} MA</span>
                       </div>
-                    ))}
-                  </div>
-                ))
+                      {members.map((m: StaffMembership) => (
+                        <div key={m.id} className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{m.profile.full_name ?? m.profile.email}</p>
+                            <p className="text-xs text-muted-foreground truncate">{m.profile.email}</p>
+                          </div>
+                          <span className="ml-3 shrink-0 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                            {ROLE_LABELS[m.role] ?? m.role}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         )}
-
-        {/* Flotte Übersicht */}
-        <div className="space-y-3">
-          <SectionHeader title="Flotte Übersicht" />
-          <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
-            {[
-              { label: 'Verfügbar', value: fleetStatus.verfuegbar, color: 'bg-green-500' },
-              { label: 'Vermietet', value: fleetStatus.vermietet, color: 'bg-blue-500' },
-              { label: 'Werkstatt', value: fleetStatus.werkstatt, color: 'bg-yellow-500' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0">
-                <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', color)} />
-                <span className="text-sm flex-1">{label}</span>
-                <span className="text-sm font-semibold tabular-nums">{value}</span>
-                <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
-                  {resources.length > 0 ? Math.round((value / resources.length) * 100) : 0}%
-                </span>
-              </div>
-            ))}
-            <div className="flex items-center gap-3 px-4 py-3 border-t border-border bg-muted/30">
-              <span className="text-xs text-muted-foreground flex-1">Gesamt</span>
-              <span className="text-sm font-semibold tabular-nums">{resources.length}</span>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <BookingDialog open={bookingDialogOpen} onClose={() => setBookingDialogOpen(false)} />
+      {canManage && <BookingDialog open={bookingDialogOpen} onClose={() => setBookingDialogOpen(false)} />}
     </div>
   )
 }
