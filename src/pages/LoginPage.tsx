@@ -25,11 +25,13 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
-      {/* Dekorative weiche Farbflächen für den Glaseffekt */}
-      <div className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-indigo-300/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-24 h-[28rem] w-[28rem] rounded-full bg-sky-300/40 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-200/30 blur-3xl" />
+    <div className="login-mesh relative flex items-center justify-center min-h-screen overflow-hidden px-4">
+      {/* Dekorative weiche Farbflächen für mehr Tiefe hinterm Glas */}
+      <div className="pointer-events-none absolute -top-40 -left-32 h-[30rem] w-[30rem] rounded-full bg-indigo-300/30 blur-3xl animate-blob" />
+      <div className="pointer-events-none absolute -bottom-48 -right-24 h-[34rem] w-[34rem] rounded-full bg-sky-300/30 blur-3xl animate-blob [animation-delay:4s]" />
+      <div className="pointer-events-none absolute top-1/3 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-violet-300/25 blur-3xl animate-blob [animation-delay:8s]" />
+      {/* feines Grid-Overlay für cleane Struktur */}
+      <div className="login-grid pointer-events-none absolute inset-0" />
 
       <div className="relative w-full max-w-sm">
         <div className="rounded-2xl border border-white/60 bg-white/60 p-8 shadow-xl shadow-slate-900/5 backdrop-blur-xl ring-1 ring-white/40">

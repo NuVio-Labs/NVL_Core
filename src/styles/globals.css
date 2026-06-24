@@ -65,3 +65,37 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
 }
+
+/* ── Login: abstrakter Mesh-Gradient-Hintergrund ────────────────────── */
+.login-mesh {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(at 18% 20%, oklch(0.92 0.06 265 / 0.55) 0px, transparent 50%),
+    radial-gradient(at 82% 12%, oklch(0.92 0.06 230 / 0.50) 0px, transparent 50%),
+    radial-gradient(at 75% 85%, oklch(0.93 0.05 200 / 0.50) 0px, transparent 50%),
+    radial-gradient(at 20% 88%, oklch(0.93 0.05 300 / 0.45) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, oklch(0.98 0.01 250 / 0.60) 0px, transparent 60%);
+}
+
+/* feines Linienraster für cleane Struktur */
+.login-grid {
+  background-image:
+    linear-gradient(to right, oklch(0.3 0 0 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.3 0 0 / 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, black 40%, transparent 100%);
+}
+
+/* langsame, sanfte Bewegung der Farbflächen */
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(24px, -32px) scale(1.06); }
+  66%      { transform: translate(-20px, 20px) scale(0.96); }
+}
+.animate-blob {
+  animation: blob 18s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob { animation: none; }
+}
