@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pencil, Trash2, UserCog, UserPlus } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 import { useCan } from '@/features/workspace'
-import { useStaffMembers, useDeleteStaffMember } from '@/features/staff/hooks/useStaff'
+import { useStaffMembers, useDeleteStaffMember, useStaffFieldDefinitions } from '@/features/staff/hooks/useStaff'
 import { StaffDialog } from '@/features/staff/components/StaffDialog'
 import { StaffInviteDialog } from '@/features/staff/components/StaffInviteDialog'
 import type { StaffMembership } from '@/features/staff/types'
@@ -28,7 +28,14 @@ const STATUS_COLORS: Record<string, string> = {
 export function StaffPage() {
   const can = useCan()
   const { data: members = [], isLoading } = useStaffMembers()
+  const { data: fieldDefinitions = [] } = useStaffFieldDefinitions()
   const deleteMember = useDeleteStaffMember()
+
+  function renderFieldValue(value: unknown): string {
+    if (value === null || value === undefined || value === '') return '—'
+    if (typeof value === 'boolean') return value ? 'Ja' : '—'
+    return String(value)
+  }
 
   const [editingMember, setEditingMember] = useState<StaffMembership | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -84,6 +91,9 @@ export function StaffPage() {
                 <th className="text-left px-4 py-3 font-medium">E-Mail</th>
                 <th className="text-left px-4 py-3 font-medium w-32">Rolle</th>
                 <th className="text-left px-4 py-3 font-medium w-28">Standort</th>
+                {fieldDefinitions.map((def) => (
+                  <th key={def.id} className="text-left px-4 py-3 font-medium whitespace-nowrap">{def.label}</th>
+                ))}
                 <th className="text-left px-4 py-3 font-medium w-24">Status</th>
                 {canManage && <th className="px-4 py-3 w-20" />}
               </tr>
@@ -95,6 +105,11 @@ export function StaffPage() {
                   <td className="px-4 py-3 text-muted-foreground">{m.profile?.email ?? '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{ROLE_LABELS[m.role] ?? m.role}</td>
                   <td className="px-4 py-3 text-muted-foreground">{m.location ?? '—'}</td>
+                  {fieldDefinitions.map((def) => (
+                    <td key={def.id} className="px-4 py-3 text-muted-foreground">
+                      {renderFieldValue((m.metadata as Record<string, unknown> | null)?.[def.name])}
+                    </td>
+                  ))}
                   <td className="px-4 py-3">
                     <span className={`text-xs font-medium ${STATUS_COLORS[m.status] ?? ''}`}>
                       {STATUS_LABELS[m.status] ?? m.status}
