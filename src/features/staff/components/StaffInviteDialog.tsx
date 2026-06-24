@@ -8,8 +8,7 @@ import type { Enums } from '@/lib/supabase/database.types'
 const ROLES: { value: Enums<'membership_role'>; label: string }[] = [
   { value: 'admin', label: 'Administrator' },
   { value: 'editor', label: 'Bearbeiter' },
-  { value: 'member', label: 'Mitarbeiter' },
-  { value: 'viewer', label: 'Lesezugriff' },
+  { value: 'user', label: 'Mitarbeiter' },
 ]
 
 interface Props {
@@ -21,7 +20,7 @@ export function StaffInviteDialog({ open, onClose }: Props) {
   const { activeCompanyId } = useWorkspace()
   const queryClient = useQueryClient()
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<Enums<'membership_role'>>('member')
+  const [role, setRole] = useState<Enums<'membership_role'>>('user')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -50,7 +49,7 @@ export function StaffInviteDialog({ open, onClose }: Props) {
 
   function handleClose() {
     setEmail('')
-    setRole('member')
+    setRole('user')
     setError(null)
     setSuccess(false)
     onClose()

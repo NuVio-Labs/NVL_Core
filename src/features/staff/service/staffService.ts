@@ -4,30 +4,14 @@ import type { Enums } from '@/lib/supabase/database.types'
 
 export const staffService = {
   async inviteMember(companyId: string, email: string, role: Enums<'membership_role'>, redirectTo: string) {
-    // Sign up creates the user + sends confirmation email
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: crypto.randomUUID(), // random password — user sets own via email link
-      options: { emailRedirectTo: redirectTo },
+    // Echte Einladung über die Edge Function (admin.inviteUserByEmail + Membership).
+    // Läuft serverseitig mit service_role; Autorisierung (Admin der Company) wird dort geprüft.
+    const { data, error } = await supabase.functions.invoke('invite-member', {
+      body: { email, company_id: companyId, role, redirect_to: redirectTo },
     })
     if (error) throw error
-    if (!data.user) throw new Error('Kein Benutzer erstellt')
-
-    // Upsert profile
-    await supabase.from('profiles').upsert({
-      id: data.user.id,
-      email,
-      full_name: null,
-    })
-
-    // Create membership
-    const { error: memError } = await supabase.from('memberships').insert({
-      company_id: companyId,
-      profile_id: data.user.id,
-      role,
-      status: 'invited',
-    })
-    if (memError) throw memError
+    if (data?.error) throw new Error(data.error)
+    return data as { ok: boolean; already_member?: boolean }
   },
 
 
