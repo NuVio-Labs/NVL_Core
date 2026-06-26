@@ -2,12 +2,14 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 import { RootLayout } from '@/app/router/RootLayout'
 import { ProtectedRoute } from '@/app/router/ProtectedRoute'
 import { OnboardingGuard } from '@/app/router/OnboardingGuard'
+import { RouteErrorBoundary } from '@/app/router/RouteErrorBoundary'
 import { AppShell } from '@/app/shell/AppShell'
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: 'login',
