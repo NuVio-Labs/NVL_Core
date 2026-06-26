@@ -28,6 +28,7 @@ function buildSchema(definitions: PriceListItemFieldDefinition[]) {
   }
   return z.object({
     name: z.string().min(1, 'Name ist erforderlich').max(100),
+    label: z.string().max(100).optional(),
     unit: z.string().min(1, 'Einheit ist erforderlich').max(30),
     price_per_unit: z.coerce.number({ invalid_type_error: 'Muss eine Zahl sein' }).min(0, 'Preis darf nicht negativ sein'),
     metadata: z.object(metadataShape),
@@ -36,6 +37,7 @@ function buildSchema(definitions: PriceListItemFieldDefinition[]) {
 
 type FormValues = {
   name: string
+  label?: string
   unit: string
   price_per_unit: number
   metadata: Record<string, unknown>
@@ -64,7 +66,7 @@ export function PriceListItemDialog({ open, priceListId, item, onSubmit, onClose
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', unit: '', price_per_unit: 0, metadata: defaultMetadata },
+    defaultValues: { name: '', label: '', unit: '', price_per_unit: 0, metadata: defaultMetadata },
   })
 
   useEffect(() => {
@@ -74,11 +76,22 @@ export function PriceListItemDialog({ open, priceListId, item, onSubmit, onClose
     }
     reset({
       name: item?.name ?? '',
+      label: (existingMeta.label as string | undefined) ?? '',
       unit: item?.unit ?? '',
       price_per_unit: item?.price_per_unit ?? 0,
       metadata: meta,
     })
   }, [item, definitions]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // label in metadata zusammenführen und bestehende, nicht über Felddefinitionen
+  // verwaltete metadata-Schlüssel erhalten (sonst gingen sie beim Bearbeiten verloren).
+  function submit(values: FormValues) {
+    const { label, ...rest } = values
+    const mergedMeta = { ...existingMeta, ...rest.metadata }
+    if (label && label.trim()) mergedMeta.label = label.trim()
+    else delete mergedMeta.label
+    onSubmit({ ...rest, metadata: mergedMeta })
+  }
 
   const metaErrors = (errors.metadata ?? {}) as Record<string, { message?: string }>
 
@@ -97,19 +110,31 @@ export function PriceListItemDialog({ open, priceListId, item, onSubmit, onClose
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(submit)} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium" htmlFor="item-name">Bezeichnung</label>
+            <label className="text-sm font-medium" htmlFor="item-name">Klassen-Code</label>
             <input
               id="item-name"
               {...register('name')}
-              placeholder="z.B. Tagesmiete"
+              placeholder="z.B. C_Transporter, PKW_E"
               className={cn(
                 'w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring',
                 errors.name ? 'border-destructive' : 'border-input',
               )}
             />
+            <p className="text-xs text-muted-foreground">Technischer Code zur Zuordnung der Fahrzeuge.</p>
             {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium" htmlFor="item-label">Anzeigename (optional)</label>
+            <input
+              id="item-label"
+              {...register('label')}
+              placeholder="z.B. C – Transporter kurz"
+              className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">Wird in Dropdowns/Buchung statt des Codes angezeigt.</p>
           </div>
 
           <div className="space-y-1">

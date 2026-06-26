@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useWorkspace } from '@/features/workspace'
 import { priceListItemService } from '../service/priceListItemService'
 import type { PriceListItemInsert, PriceListItemUpdate } from '../types'
 
@@ -9,6 +10,17 @@ export function usePriceListItems(priceListId: string | undefined) {
     queryKey: QUERY_KEY(priceListId ?? ''),
     queryFn: () => priceListItemService.getAllForList(priceListId!),
     enabled: !!priceListId,
+  })
+}
+
+// Eindeutige Preisgruppen (Klassen) des Mandanten — für das Dropdown bei der
+// Ressourcen-Anlage. Quelle ist die Preisliste selbst (keine doppelte Wahrheit).
+export function useResourceClasses() {
+  const { activeCompanyId } = useWorkspace()
+  return useQuery({
+    queryKey: ['resource_classes', activeCompanyId ?? ''],
+    queryFn: () => priceListItemService.getDistinctClasses(activeCompanyId!),
+    enabled: !!activeCompanyId,
   })
 }
 

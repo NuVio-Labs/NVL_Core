@@ -41,10 +41,12 @@ const KM_PACKAGES = [
   { key: 'km_1000', label: '+1000 km' },
 ] as const
 
-// Mehrtagesbuchungen: aus dem 24h-Tarif werden virtuelle Stufen (2–5 Tage)
-// abgeleitet. Wert-Schema "<mappingId>×<faktor>" — der echte DB-Tarif bleibt
-// unangetastet, Dauer und Preis werden nur mit dem Faktor multipliziert.
-const MULTI_DAY_FACTORS = [2, 3, 4, 5] as const
+// Mehrtagesbuchungen: aus dem 24h-Tarif werden virtuelle Zwischenstufen (2–6
+// Tage) abgeleitet. Wert-Schema "<mappingId>×<faktor>" — der echte DB-Tarif
+// bleibt unangetastet, Dauer und Preis werden mit dem Faktor multipliziert.
+// 7 Tage / 30 Tage haben eigene (rabattierte) Tarife und kommen als echte
+// Mappings aus der DB — diese werden NICHT über den Faktor abgebildet.
+const MULTI_DAY_FACTORS = [2, 3, 4, 5, 6] as const
 const DAY_MINUTES = 1440
 
 function parseDurationValue(value: string): { mappingId: string; factor: number } {
@@ -189,14 +191,17 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   // 24h-Tarif als Basis für virtuelle Mehrtages-Stufen
   const dayBaseMapping = durationMappings.find((m) => m.duration_minutes === DAY_MINUTES)
 
-  // Filter price lists by customer type and resource category
+  // Filter price lists by customer type and resource category.
+  // Preisgruppen sind uneinheitlich geschrieben (z.B. "C_Transporter" UND
+  // "Transporter_F" UND "G_Transporter") → mit includes statt startsWith
+  // prüfen, sonst landet ein Transporter fälschlich in der PKW-Liste.
   const resourceCategory = (() => {
     if (!selectedResource) return null
     const name = selectedResource.name.toLowerCase()
     const meta = (selectedResource.metadata ?? {}) as Record<string, unknown>
     const gruppe = String(meta[preisgruppeFeld] ?? '').toLowerCase()
     if (gruppe.includes('anhaenger') || gruppe.includes('anhänger') || name.includes('anhänger') || name.includes('anhaenger')) return 'anhaenger'
-    if (gruppe.startsWith('transporter') || gruppe.startsWith('lkw')) return 'transporter'
+    if (gruppe.includes('transporter') || gruppe.includes('lkw')) return 'transporter'
     return 'pkw'
   })()
 
@@ -251,23 +256,64 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
       .finally(() => setCheckingAvailability(false))
   }, [watchedResourceId, startsAt?.toISOString(), endsAt?.toISOString()]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Find matching price list item by resource's Preisgruppe
+  // Find matching price list item by resource's Preisgruppe.
+  // Daten sind uneinheitlich (z.B. Gruppe "B_PKW"/"C_Transporter", Items "B"/
+  // "PKW_E"/"Transporter_C"). Deterministische Zuordnung mit klarer Priorität —
+  // KEIN unscharfes Teil-Token-Matching, das die falsche Gruppe treffen kann.
   const { data: priceListItems = [] } = usePriceListItems(watchedPriceListId || undefined)
   const resourceMeta = (selectedResource?.metadata ?? {}) as Record<string, unknown>
   const preisgruppe = resourceMeta[preisgruppeFeld] as string | undefined
   const matchingItem = preisgruppe
     ? (() => {
-        const normalize = (s: string) =>
-          s.toLowerCase().replace(/gruppe|group/g, '').replace(/[_\s]+/g, ' ').trim()
-        const tokenize = (s: string) => normalize(s).split(' ').filter(Boolean)
-        const pgTokens = tokenize(preisgruppe)
-        return priceListItems.find((item) => {
-          if (item.name.toLowerCase() === preisgruppe.toLowerCase()) return true
-          const itemTokens = tokenize(item.name)
-          return pgTokens.every((t) => itemTokens.includes(t)) || itemTokens.every((t) => pgTokens.includes(t))
-        })
+        const pg = preisgruppe.trim().toLowerCase()
+        // Kategorie-Wörter entfernen → Kern (z.B. nur der Klassenbuchstabe).
+        const stripCategory = (s: string) =>
+          s.toLowerCase()
+            .replace(/pkw|9-?sitzer|lkw|transporter|anh(ae|ä)nger/g, '')
+            .replace(/[_\s]+/g, '')
+            .trim()
+        const pgCore = stripCategory(pg)
+
+        // 1. Exakter Name (case-insensitive)
+        const exact = priceListItems.find((it) => it.name.trim().toLowerCase() === pg)
+        if (exact) return exact
+
+        // 2. Gleicher Kern nach Entfernen der Kategorie (B_PKW ↔ B, E_PKW ↔ PKW_E,
+        //    C_Transporter ↔ Transporter_C). Nur wenn der Kern nicht leer ist.
+        if (pgCore) {
+          const byCore = priceListItems.find((it) => stripCategory(it.name) === pgCore)
+          if (byCore) return byCore
+        }
+
+        // Kein verlässlicher Treffer → bewusst kein (falscher) Preis.
+        return undefined
       })()
     : undefined
+
+  // Nur die Dauern anbieten, für die das gewählte Fahrzeug (= matchingItem)
+  // tatsächlich einen Tarif hat. So ergibt sich die Mindestmiete automatisch
+  // aus dem kürzesten hinterlegten Tarif (z.B. PKW erst ab 24h). Ohne Fahrzeug
+  // werden alle Dauern gezeigt.
+  const availableDurations = (() => {
+    if (!matchingItem) return durationMappings
+    const meta = (matchingItem.metadata ?? {}) as Record<string, unknown>
+    return durationMappings.filter((m) => {
+      const v = meta[m.field_name]
+      return v !== undefined && v !== null && v !== ''
+    })
+  })()
+  // 24h-Tarif vorhanden? Nur dann Mehrtage-Stufen anbieten.
+  const hasDayTarif = !!(dayBaseMapping &&
+    matchingItem &&
+    ((matchingItem.metadata ?? {}) as Record<string, unknown>)[dayBaseMapping.field_name] != null &&
+    ((matchingItem.metadata ?? {}) as Record<string, unknown>)[dayBaseMapping.field_name] !== '')
+
+  // Anzeigename der Preisklasse (Fallback: technischer Code)
+  const matchingItemLabel = (() => {
+    if (!matchingItem) return ''
+    const meta = (matchingItem.metadata ?? {}) as Record<string, unknown>
+    return typeof meta.label === 'string' && meta.label.trim() ? meta.label : matchingItem.name
+  })()
 
   // Calculate price
   const { basePrice, kmPrice, calculatedPrice } = (() => {
@@ -286,6 +332,11 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
 
     return { basePrice: base, kmPrice: km, calculatedPrice: base + (km ?? 0) }
   })()
+
+  // Fahrzeug + Dauer gewählt, aber kein Preis ermittelbar (fehlende Preisgruppe
+  // ODER kein Tarifwert für diese Dauer) → klar anzeigen statt still Null buchen.
+  const priceUnavailable = !!(selectedResource && selectedMapping && calculatedPrice === null)
+  const missingTariff = !!(selectedResource && selectedMapping && matchingItem && calculatedPrice === null)
 
   // Standort warning: resource's current location vs. logged-in staff member's location
   const resourceStandort = standortFeld ? resourceMeta[standortFeld] as string | undefined : undefined
@@ -371,7 +422,9 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      {/* Hintergrund schließt das Modal bewusst NICHT (Klick neben Modal /
+          Fokuswechsel soll Eingaben nicht verwerfen) — nur X / Abbrechen. */}
+      <div className="absolute inset-0 bg-black/50" />
       <div className="relative z-10 w-full max-w-lg mx-4 bg-background border border-border rounded-lg shadow-lg p-6 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -562,24 +615,26 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
             </div>
           )}
 
-          {/* Dauer */}
+          {/* Dauer — nur Stufen mit hinterlegtem Tarif für das gewählte Fahrzeug */}
           <div className="space-y-1">
             <label className="text-sm font-medium">Dauer</label>
             {durationMappings.length === 0 ? (
               <p className="text-xs text-muted-foreground">Keine Dauer-Tarife konfiguriert. Bitte zuerst in Einstellungen anlegen.</p>
+            ) : selectedResource && availableDurations.length === 0 ? (
+              <p className="text-xs text-amber-700">Für dieses Fahrzeug ist kein Tarif hinterlegt.</p>
             ) : (
               <select
                 {...register('duration_mapping_id')}
                 className={cn('w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background', errors.duration_mapping_id ? 'border-destructive' : 'border-input')}
               >
                 <option value="">— Dauer wählen —</option>
-                {durationMappings.map((m) => (
+                {availableDurations.map((m) => (
                   <option key={m.id} value={m.id}>{m.label}</option>
                 ))}
-                {dayBaseMapping && (
+                {hasDayTarif && (
                   <optgroup label="Mehrere Tage">
                     {MULTI_DAY_FACTORS.map((f) => (
-                      <option key={`${dayBaseMapping.id}×${f}`} value={`${dayBaseMapping.id}×${f}`}>
+                      <option key={`${dayBaseMapping!.id}×${f}`} value={`${dayBaseMapping!.id}×${f}`}>
                         {f} Tage
                       </option>
                     ))}
@@ -688,7 +743,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
                 <>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">
-                      Tarif ({matchingItem.name}){durationFactor > 1 ? ` · ${durationFactor} Tage` : ''}:
+                      Tarif ({matchingItemLabel}){durationFactor > 1 ? ` · ${durationFactor} Tage` : ''}:
                     </span>
                     <span className="tabular-nums">{formatPrice(basePrice)}</span>
                   </div>
@@ -708,9 +763,17 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
               )}
 
               {!matchingItem && selectedResource && watchedPriceListId && (
-                <p className="text-xs text-amber-700">
-                  Keine Preisgruppe für "{preisgruppe}" in der Preisliste gefunden.
-                </p>
+                <div className="flex items-start gap-1.5 text-amber-700 text-xs font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>Keine Preisgruppe für „{preisgruppe}" in der Preisliste gefunden — bitte Tarif prüfen.</span>
+                </div>
+              )}
+
+              {missingTariff && (
+                <div className="flex items-start gap-1.5 text-amber-700 text-xs font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>Für „{matchingItemLabel}" ist kein Preis für die Dauer „{selectedMapping!.label}" hinterlegt.</span>
+                </div>
               )}
 
               {checkingAvailability && (
@@ -794,7 +857,8 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
               </button>
               <button
                 type="submit"
-                disabled={isMutating || availability === false}
+                disabled={isMutating || availability === false || priceUnavailable}
+                title={priceUnavailable ? 'Kein Preis ermittelbar — bitte Preisgruppe/Tarif prüfen.' : undefined}
                 className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {isMutating ? 'Speichern…' : 'Speichern'}

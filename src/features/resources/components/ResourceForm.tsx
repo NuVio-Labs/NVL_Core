@@ -4,7 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { cn } from '@/lib/utils'
 import { useFieldDefinitions } from '../hooks/useFieldDefinitions'
+import { useResourceClasses } from '@/features/pricing/hooks/usePriceListItems'
+import { useLocations } from '@/features/locations/hooks/useLocations'
 import type { Resource, ResourceFieldDefinition } from '../types'
+
+// Felder anhand des Feldnamens erkennen (datengetrieben, kein Hardcoding auf
+// genau einen Namen).
+function isPriceGroupField(name: string) {
+  const n = name.toLowerCase()
+  return n.includes('preis') && n.includes('grupp')
+}
+function isLocationField(name: string) {
+  const n = name.toLowerCase()
+  return n.includes('standort') || n.includes('homebase')
+}
 
 function buildSchema(definitions: ResourceFieldDefinition[]) {
   const metadataShape: Record<string, z.ZodTypeAny> = {}
@@ -57,6 +70,9 @@ interface Props {
 
 export function ResourceForm({ resource, onSubmit, onCancel, isLoading }: Props) {
   const { data: definitions = [] } = useFieldDefinitions()
+  const { data: priceClasses = [] } = useResourceClasses()
+  const { data: locations = [] } = useLocations()
+  const locationNames = locations.filter((l) => l.is_active).map((l) => l.name)
   const schema = buildSchema(definitions)
 
   const existingMeta = (resource?.metadata ?? {}) as Record<string, unknown>
@@ -142,6 +158,94 @@ export function ResourceForm({ resource, onSubmit, onCancel, isLoading }: Props)
                   <label className="text-sm font-medium" htmlFor={`metadata.${def.name}`}>
                     {def.label}
                   </label>
+                </div>
+              )
+            }
+
+            // Preisgruppe als Dropdown aus den Preislisten-Klassen (verhindert
+            // Tippfehler wie "A_LKW"/"PKW E"). Angezeigt wird der sprechende
+            // Anzeigename, gespeichert der technische Klassen-Code. Aktueller
+            // Wert bleibt wählbar, auch wenn er keiner gültigen Klasse entspricht.
+            if (isPriceGroupField(def.name)) {
+              const current = String(existingMeta[def.name] ?? '')
+              const known = priceClasses.some((c) => c.name === current)
+              // Klassen nach Kategorie gruppieren (Reihenfolge kommt schon
+              // sortiert aus dem Service: PKW → Transporter → Anhänger → …).
+              const groups: { category: string; items: typeof priceClasses }[] = []
+              for (const cls of priceClasses) {
+                let g = groups.find((x) => x.category === cls.category)
+                if (!g) { g = { category: cls.category, items: [] }; groups.push(g) }
+                g.items.push(cls)
+              }
+              return (
+                <div key={def.id} className="space-y-1">
+                  <label className="text-sm font-medium" htmlFor={`metadata.${def.name}`}>
+                    {def.label}{def.is_required && <span className="text-destructive ml-1">*</span>}
+                  </label>
+                  <select
+                    id={`metadata.${def.name}`}
+                    {...register(`metadata.${def.name}` as never)}
+                    className={cn(
+                      'w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background',
+                      fieldError ? 'border-destructive' : 'border-input',
+                    )}
+                  >
+                    <option value="">— Preisgruppe wählen —</option>
+                    {current && !known && (
+                      <option value={current}>{current} (unbekannt)</option>
+                    )}
+                    {groups.map((g) => (
+                      <optgroup key={g.category} label={g.category}>
+                        {g.items.map((cls) => (
+                          <option key={cls.name} value={cls.name}>{cls.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  {priceClasses.length === 0 && (
+                    <p className="text-xs text-amber-700">
+                      Keine Preisgruppen gefunden. Bitte zuerst Preislisten-Einträge anlegen.
+                    </p>
+                  )}
+                  {fieldError && <p className="text-destructive text-xs">{fieldError}</p>}
+                </div>
+              )
+            }
+
+            // Homebase / Aktueller Standort als Dropdown aus den Standorten
+            // (verhindert Tippfehler/Schreibvarianten). Aktueller Wert bleibt
+            // wählbar, auch wenn er (noch) kein gepflegter Standort ist.
+            if (isLocationField(def.name)) {
+              const current = String(existingMeta[def.name] ?? '')
+              const options = current && !locationNames.includes(current)
+                ? [current, ...locationNames]
+                : locationNames
+              return (
+                <div key={def.id} className="space-y-1">
+                  <label className="text-sm font-medium" htmlFor={`metadata.${def.name}`}>
+                    {def.label}{def.is_required && <span className="text-destructive ml-1">*</span>}
+                  </label>
+                  <select
+                    id={`metadata.${def.name}`}
+                    {...register(`metadata.${def.name}` as never)}
+                    className={cn(
+                      'w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background',
+                      fieldError ? 'border-destructive' : 'border-input',
+                    )}
+                  >
+                    <option value="">— Standort wählen —</option>
+                    {options.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}{current === loc && !locationNames.includes(loc) ? ' (unbekannt)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {locationNames.length === 0 && (
+                    <p className="text-xs text-amber-700">
+                      Keine Standorte gefunden. Bitte zuerst unter „Standorte" anlegen.
+                    </p>
+                  )}
+                  {fieldError && <p className="text-destructive text-xs">{fieldError}</p>}
                 </div>
               )
             }
