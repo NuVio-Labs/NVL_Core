@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { authService } from '../service/authService'
@@ -14,11 +14,15 @@ export function AuthProvider({ children }: Props) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  // Welche User-ID gerade als User/Profil geladen ist — verhindert unnötige
+  // State-Erneuerung beim Token-Refresh (gleicher User).
+  const loadedUserId = useRef<string | null>(null)
 
   useEffect(() => {
     authService.getSession().then((s) => {
       setSession(s)
       setUser(s?.user ?? null)
+      loadedUserId.current = s?.user?.id ?? null
       if (s?.user) {
         authService.getProfile(s.user.id).then(setProfile)
       }
@@ -27,11 +31,19 @@ export function AuthProvider({ children }: Props) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
-      setUser(s?.user ?? null)
-      if (s?.user) {
-        authService.getProfile(s.user.id).then(setProfile)
-      } else {
-        setProfile(null)
+      const nextUser = s?.user ?? null
+      // User/Profil nur bei echter User-Änderung erneuern. Beim Token-Refresh
+      // (z.B. nach Tab-Wechsel) feuert Supabase mit demselben User — eine neue
+      // Objekt-Referenz würde sonst nachgelagerte Effects (Workspace lädt neu →
+      // isLoading=true → Seite hängt kurz aus) auslösen und offene Dialoge schließen.
+      if (nextUser?.id !== loadedUserId.current) {
+        loadedUserId.current = nextUser?.id ?? null
+        setUser(nextUser)
+        if (nextUser) {
+          authService.getProfile(nextUser.id).then(setProfile)
+        } else {
+          setProfile(null)
+        }
       }
     })
 
