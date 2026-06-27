@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Search, X, LayoutList, CalendarDays, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, LayoutList, CalendarDays, Plus, FileText } from 'lucide-react'
 import { useBookingsByMonth } from '@/features/bookings/hooks/useBookings'
 import { BookingDialog } from '@/features/bookings/components/BookingDialog'
+import { ContractDataView } from '@/features/bookings/components/ContractDataView'
 import type { BookingWithCreator } from '@/features/bookings/types'
 import { cn } from '@/lib/utils'
 
@@ -251,6 +252,7 @@ export function BookingsPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
   const [editingBooking, setEditingBooking] = useState<BookingWithCreator | undefined>()
   const [dayListDate, setDayListDate] = useState<Date | null>(null)
+  const [contractBooking, setContractBooking] = useState<BookingWithCreator | null>(null)
 
   const { data: bookings = [], isLoading } = useBookingsByMonth(year, month)
 
@@ -437,6 +439,7 @@ export function BookingsPage() {
                   <th className="text-left px-4 py-3 font-medium">Bis</th>
                   <th className="text-left px-4 py-3 font-medium">Status</th>
                   <th className="text-left px-4 py-3 font-medium">Angelegt von</th>
+                  <th className="text-right px-4 py-3 font-medium">Vertrag</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -461,6 +464,16 @@ export function BookingsPage() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {b.creator ? (b.creator.full_name ?? b.creator.email) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setContractBooking(b) }}
+                          title="Vertragsdaten zum Abschreiben"
+                          className="inline-flex items-center justify-center p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   )
@@ -595,6 +608,12 @@ export function BookingsPage() {
         booking={editingBooking}
         initialDate={selectedDate}
         onClose={handleClose}
+      />
+
+      <ContractDataView
+        open={!!contractBooking}
+        booking={contractBooking}
+        onClose={() => setContractBooking(null)}
       />
     </div>
   )
