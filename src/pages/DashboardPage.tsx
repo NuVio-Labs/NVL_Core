@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react'
-import { Plus, Car, CalendarDays, Users, AlertTriangle, MapPin, CheckCircle2, X, ArrowDownToLine, ArrowUpFromLine, Clock, Euro } from 'lucide-react'
+import { Plus, Car, CalendarDays, Users, AlertTriangle, MapPin, CheckCircle2, X, ArrowDownToLine, ArrowUpFromLine, Clock, Euro, Undo2 } from 'lucide-react'
 import { useAuth } from '@/features/auth'
 import { useWorkspace } from '@/features/workspace'
-import { useBookingsForRange } from '@/features/bookings/hooks/useBookings'
+import { useBookingsForRange, useMarkReturned, useUndoReturn } from '@/features/bookings/hooks/useBookings'
 import { useResources, useUpdateResource } from '@/features/resources/hooks/useResources'
 import { useStaffMembers } from '@/features/staff/hooks/useStaff'
+import { useLocations } from '@/features/locations'
 import { BookingDialog } from '@/features/bookings/components/BookingDialog'
+import { getReturnInfo } from '@/features/bookings/types'
 import { cn } from '@/lib/utils'
 import type { Booking } from '@/features/bookings/types'
 import type { Resource } from '@/features/resources/types'
 import type { StaffMembership } from '@/features/staff/types'
+import type { Location } from '@/features/locations'
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrator',
@@ -104,6 +107,127 @@ function MovementRow({ booking, resources, mode }: { booking: Booking; resources
       )}>
         {formatTime(time)}{overdue ? ' · überfällig' : ''}
       </span>
+    </div>
+  )
+}
+
+/**
+ * Zeile in „Überfällige Rückgaben": ermöglicht das Eintragen der Rückgabe
+ * (Standort-Pflicht per Dropdown). Mitarbeiter + Uhrzeit werden im Log
+ * festgehalten. Bereits eingetragene Rückgaben verschwinden aus dieser Liste,
+ * werden hier also nur im Eintrag-Zustand gerendert.
+ */
+function ReturnRow({ booking, resources, locations, currentUserId, currentUserName }: {
+  booking: Booking
+  resources: Resource[]
+  locations: Location[]
+  currentUserId: string
+  currentUserName: string
+}) {
+  const resource = resources.find((r) => r.id === booking.resource_id)
+  const activeLocations = locations.filter((l) => l.is_active)
+  const [open, setOpen] = useState(false)
+  const [locationId, setLocationId] = useState('')
+  const markReturned = useMarkReturned()
+
+  async function handleConfirm() {
+    const location = activeLocations.find((l) => l.id === locationId)
+    if (!location) return
+    await markReturned.mutateAsync({
+      id: booking.id,
+      input: {
+        returnedBy: currentUserId,
+        returnedByName: currentUserName,
+        locationId: location.id,
+        locationName: location.name,
+      },
+    })
+    // Buchung fällt nach Invalidierung aus der Liste — kein lokales Reset nötig.
+  }
+
+  return (
+    <div className="px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
+          <p className="text-xs text-muted-foreground truncate">{resource?.name ?? '—'}</p>
+        </div>
+        {!open && (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-destructive">
+              {formatTime(booking.ends_at)} · überfällig
+            </span>
+            <button
+              onClick={() => setOpen(true)}
+              className="text-xs px-2 py-0.5 rounded bg-primary text-primary-foreground hover:opacity-90 flex items-center gap-1"
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              Zurück
+            </button>
+          </div>
+        )}
+      </div>
+      {open && (
+        <div className="flex items-center gap-1.5 mt-2">
+          <select
+            value={locationId}
+            onChange={(e) => setLocationId(e.target.value)}
+            disabled={markReturned.isPending}
+            className="flex-1 min-w-0 text-xs border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">Standort wählen…</option>
+            {activeLocations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleConfirm}
+            disabled={markReturned.isPending || !locationId}
+            className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 flex items-center gap-1 shrink-0"
+          >
+            <CheckCircle2 className="w-3 h-3" />
+            {markReturned.isPending ? '…' : 'Eintragen'}
+          </button>
+          <button
+            onClick={() => { setOpen(false); setLocationId('') }}
+            disabled={markReturned.isPending}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Zeile in „Heute zurückgenommen": zeigt den Rückgabe-Log (wer/wann/wo) und
+ * erlaubt das Widerrufen einer fälschlich eingetragenen Rückgabe.
+ */
+function ReturnedRow({ booking, resources }: { booking: Booking; resources: Resource[] }) {
+  const resource = resources.find((r) => r.id === booking.resource_id)
+  const info = getReturnInfo(booking)
+  const undoReturn = useUndoReturn()
+  if (!info) return null
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+      <CheckCircle2 className="w-4 h-4 shrink-0 text-green-600" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
+        <p className="text-xs text-muted-foreground truncate">
+          {resource?.name ?? '—'} · {info.returned_by_name} · {formatTime(info.returned_at)} · {info.returned_location_name}
+        </p>
+      </div>
+      <button
+        onClick={() => undoReturn.mutate(booking.id)}
+        disabled={undoReturn.isPending}
+        title="Rückgabe widerrufen"
+        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0 disabled:opacity-50"
+      >
+        <Undo2 className="w-3.5 h-3.5" />
+        {undoReturn.isPending ? '…' : 'Rückgängig'}
+      </button>
     </div>
   )
 }
@@ -270,7 +394,7 @@ function FleetOverview({ fleetStatus, total }: { fleetStatus: { verfuegbar: numb
 }
 
 export function DashboardPage() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const { activeCompany, activeMembership, activeRole } = useWorkspace()
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [bookingPeriod, setBookingPeriod] = useState<'today' | 'week' | 'month'>('today')
@@ -295,6 +419,11 @@ export function DashboardPage() {
   const { data: monthBookings = [] } = useBookingsForRange(monthStart, monthEnd)
   const { data: resources = [] } = useResources()
   const { data: staffMembers = [] } = useStaffMembers()
+  const { data: locations = [] } = useLocations()
+
+  // Anzeigename des quittierenden Mitarbeiters für den Rückgabe-Log.
+  const currentUserId = user?.id ?? ''
+  const currentUserName = profile?.full_name?.trim() || profile?.email || 'Unbekannt'
 
   // Flottenstatus (heute gebucht = vermietet)
   const fleetStatus = useMemo(() => {
@@ -333,11 +462,29 @@ export function DashboardPage() {
     [todayBookings],
   )
 
-  // Überfällige Rückgaben (Endzeit in Vergangenheit, nicht storniert)
+  // Überfällige Rückgaben (Endzeit in Vergangenheit, nicht storniert, noch nicht
+  // zurückgegeben). Sobald die Rückgabe eingetragen ist (metadata.return), fällt
+  // die Buchung aus dieser Liste — das ist der eigentliche Nutzen.
   const overdueReturns = useMemo(
     () => monthBookings
-      .filter((b) => b.status !== 'cancelled' && new Date(b.ends_at) < now)
+      .filter((b) => b.status !== 'cancelled' && new Date(b.ends_at) < now && !getReturnInfo(b))
       .sort((a, b) => new Date(a.ends_at).getTime() - new Date(b.ends_at).getTime()),
+    [monthBookings],
+  )
+
+  // Heute zurückgenommene Buchungen — für Log-Sicht + Widerruf. Nach
+  // Rückgabezeit absteigend (zuletzt zurückgenommen oben).
+  const returnedToday = useMemo(
+    () => monthBookings
+      .filter((b) => {
+        const info = getReturnInfo(b)
+        return b.status !== 'cancelled' && info && isSameDay(new Date(info.returned_at), now)
+      })
+      .sort((a, b) => {
+        const ta = new Date(getReturnInfo(a)!.returned_at).getTime()
+        const tb = new Date(getReturnInfo(b)!.returned_at).getTime()
+        return tb - ta
+      }),
     [monthBookings],
   )
 
@@ -487,10 +634,26 @@ export function DashboardPage() {
           </ListCard>
         )}
 
-        {/* Überfällige Rückgaben — Admin + Bearbeiter */}
+        {/* Überfällige Rückgaben — Admin + Bearbeiter. Rückgabe direkt eintragbar. */}
         {canManage && (
           <ListCard title="Überfällige Rückgaben" badge={overdueReturns.length} empty="Keine überfälligen Rückgaben.">
-            {overdueReturns.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="return" />)}
+            {overdueReturns.map((b) => (
+              <ReturnRow
+                key={b.id}
+                booking={b}
+                resources={resources}
+                locations={locations}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+              />
+            ))}
+          </ListCard>
+        )}
+
+        {/* Heute zurückgenommen — Admin + Bearbeiter. Log + Widerruf. */}
+        {canManage && returnedToday.length > 0 && (
+          <ListCard title="Heute zurückgenommen" badge={returnedToday.length} empty="Noch keine Rückgaben heute eingetragen.">
+            {returnedToday.map((b) => <ReturnedRow key={b.id} booking={b} resources={resources} />)}
           </ListCard>
         )}
 

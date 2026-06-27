@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWorkspace } from '@/features/workspace'
 import { bookingService } from '../service/bookingService'
-import type { BookingInsert, BookingUpdate } from '../types'
+import type { BookingInsert, BookingUpdate, MarkReturnedInput } from '../types'
 
 export const bookingKeys = {
   all: (companyId: string) => ['bookings', companyId] as const,
@@ -60,6 +60,29 @@ export function useCancelBooking() {
   const { activeCompanyId } = useWorkspace()
   return useMutation({
     mutationFn: (id: string) => bookingService.cancel(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', activeCompanyId] })
+    },
+  })
+}
+
+export function useMarkReturned() {
+  const queryClient = useQueryClient()
+  const { activeCompanyId } = useWorkspace()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: MarkReturnedInput }) =>
+      bookingService.markReturned(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings', activeCompanyId] })
+    },
+  })
+}
+
+export function useUndoReturn() {
+  const queryClient = useQueryClient()
+  const { activeCompanyId } = useWorkspace()
+  return useMutation({
+    mutationFn: (id: string) => bookingService.undoReturn(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', activeCompanyId] })
     },

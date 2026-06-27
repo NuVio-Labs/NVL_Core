@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Booking, BookingInsert, BookingUpdate, BookingWithCreator } from '../types'
+import type { Booking, BookingInsert, BookingUpdate, BookingWithCreator, BookingReturnInfo, MarkReturnedInput } from '../types'
 
 export const bookingService = {
   async getAll(companyId: string): Promise<Booking[]> {
@@ -54,6 +54,61 @@ export const bookingService = {
       .update({ status: 'cancelled' })
       .eq('id', id)
     if (error) throw error
+  },
+
+  /**
+   * Trägt die Rückgabe einer Buchung ein (wer/wann/wo). Wird additiv unter
+   * `metadata.return` abgelegt — bestehende metadata bleibt erhalten. Setzt
+   * `returned_at` serverseitig nicht, sondern aus Client-Zeit, damit die im UI
+   * angezeigte Uhrzeit exakt der gespeicherten entspricht.
+   */
+  async markReturned(id: string, input: MarkReturnedInput): Promise<Booking> {
+    const { data: current, error: readError } = await supabase
+      .from('bookings')
+      .select('metadata')
+      .eq('id', id)
+      .single()
+    if (readError) throw readError
+
+    const ret: BookingReturnInfo = {
+      returned_at: new Date().toISOString(),
+      returned_by: input.returnedBy,
+      returned_by_name: input.returnedByName,
+      returned_location_id: input.locationId,
+      returned_location_name: input.locationName,
+    }
+    const metadata = { ...((current?.metadata as Record<string, unknown>) ?? {}), return: ret }
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ metadata })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  /** Widerruft eine eingetragene Rückgabe — entfernt `metadata.return` wieder. */
+  async undoReturn(id: string): Promise<Booking> {
+    const { data: current, error: readError } = await supabase
+      .from('bookings')
+      .select('metadata')
+      .eq('id', id)
+      .single()
+    if (readError) throw readError
+
+    const metadata = { ...((current?.metadata as Record<string, unknown>) ?? {}) }
+    delete metadata.return
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ metadata })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
   },
 
   async getForDateRange(companyId: string, from: string, to: string) {
