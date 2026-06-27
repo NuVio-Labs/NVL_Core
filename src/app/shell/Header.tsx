@@ -4,10 +4,12 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/features/auth'
 import { useWorkspace } from '@/features/workspace'
 import { useSidebar } from './SidebarContext'
+import { WhatsNew } from './WhatsNew'
 
 export function Header() {
   const { profile, signOut } = useAuth()
-  const { activeCompany, memberships, switchCompany } = useWorkspace()
+  const { activeCompany, memberships, switchCompany, activeRole } = useWorkspace()
+  const isAdmin = activeRole === 'admin' || activeRole === 'owner'
   const { toggle } = useSidebar()
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
@@ -76,6 +78,10 @@ export function Header() {
       </div>
       </div>
 
+      <div className="flex items-center gap-1">
+      {/* Was ist neu — nur Admins */}
+      {isAdmin && <WhatsNew />}
+
       {/* User Menu */}
       <div className="relative" ref={userRef}>
         <button
@@ -103,6 +109,7 @@ export function Header() {
             </button>
           </div>
         )}
+      </div>
       </div>
     </header>
   )
