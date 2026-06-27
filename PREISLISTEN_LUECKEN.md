@@ -1,9 +1,13 @@
 # Fahrzeug-Preisgruppen – Korrekturen (PLT)
 
-> Stand: 26.06.2026 · DB gegen offizielle Preislisten (gültig ab 01.08.2024) geprüft.
+> Stand: 27.06.2026 · DB gegen offizielle Preislisten (gültig ab 01.08.2024) geprüft.
 >
-> **Wichtigstes Ergebnis:** Die Preis-Tarife in der DB stimmen **vollständig** mit den
-> offiziellen Listen überein. Es fehlt **kein** Tarif. Das Problem sind **falsche
+> **✅ ABGESCHLOSSEN:** Alle Anhänger, LKW und der Tippfehler-Fall sind in der DB auf
+> gültige Preisgruppen gesetzt. Kein Fahrzeug steht mehr auf einer nicht-existenten
+> Gruppe (`A_Anhaenger` / `A_LKW` / `B_LKW`). Per service_role am 27.06.2026 verifiziert.
+>
+> **Wichtigstes Ergebnis (Ausgangslage):** Die Preis-Tarife in der DB stimmen **vollständig**
+> mit den offiziellen Listen überein. Es fehlt **kein** Tarif. Das Problem waren **falsche
 > Preisgruppen an einzelnen Fahrzeugen** – reine Fahrzeug-Stammdatenpflege.
 
 ---
@@ -73,22 +77,23 @@ Aktuell hatten alle pauschal `A_Anhaenger` (existiert nicht). Vorhandene Tarife:
 | [x] Kofferanhänger Weeze | KLE-PL-527 | `Anhaenger_Koffer` ✅ |
 | [x] Offene Pritsche | KLE-PL-537 | `Anhaenger_Pritsche` ✅ |
 
-### ❓ Deine Entscheidung nötig (7 Stück) — NOCH OFFEN
+### ✅ Geklärt mit Kunde Peter — ERLEDIGT (7 Stück, am 27.06.2026 gesetzt)
 
-Du musst je Fahrzeug die Klasse wählen. Mögliche Werte:
-`Anhaenger_Planeklein` · `Anhaenger_Planegross` · `Anhaenger_Autotrailer` · `Anhaenger_Koffer` · `Anhaenger_Pritsche`
+Klein/groß über Anhänger-Gewicht entschieden (1300 kg → groß, 750 kg → klein),
+Pferdeanhänger laut Peter zum Koffer-Preis.
 
-| Fahrzeug | Kennzeichen | Tendenz | → deine Wahl |
+| Fahrzeug | Kennzeichen | Gewicht | → gesetzte Gruppe |
 |---|---|---|---|
-| [x] Große Plane Alpen | GEL-PL-527 | `Anhaenger_Planegross` | **`Anhaenger_Planegross`** ✅ |
-| [x] Große Plane Goch | KLE-PL-577 | `Anhaenger_Planegross` | **`Anhaenger_Planegross`** ✅ |
-| [ ] Plane Goch | KLE-PL-508 | klein **oder** groß? | ____________ |
-| [ ] Planenanhänger Kevelaer | KLE-PL-507 | klein **oder** groß? | ____________ |
-| [ ] Planenanhänger Uedem | KLE-PL-500 | klein **oder** groß? | ____________ |
-| [ ] Planenanhänger Weeze | GEL-PL-507 | klein **oder** groß? | ____________ |
-| [ ] Pferdeanhänger | (kein KZ) | kein direkter Tarif – welcher passt? | ____________ |
+| [x] Große Plane Alpen | GEL-PL-527 | — | `Anhaenger_Planegross` ✅ |
+| [x] Große Plane Goch | KLE-PL-577 | — | `Anhaenger_Planegross` ✅ |
+| [x] Plane Goch | KLE-PL-508 | 1300 kg | `Anhaenger_Planegross` ✅ |
+| [x] Planenanhänger Uedem | KLE-PL-500 | 1300 kg | `Anhaenger_Planegross` ✅ |
+| [x] Planenanhänger Kevelaer | KLE-PL-507 | 750 kg | `Anhaenger_Planeklein` ✅ |
+| [x] Planenanhänger Weeze | GEL-PL-507 | 750 kg | `Anhaenger_Planeklein` ✅ |
+| [x] Pferdeanhänger (2 Pferde) | (kein KZ) | — | `Anhaenger_Koffer` ✅ (= Koffer-Preis) |
 
-> Sobald du die 7 Werte nennst, setze ich sie ebenfalls per service_role.
+> Hinweis: „Planenanhänger Kranenburg" (KLE-PL-506) steht weiterhin auf `Anhaenger_Planeklein`
+> — war bereits vor dieser Runde gesetzt, von Peter nicht beanstandet.
 
 ---
 
@@ -96,7 +101,10 @@ Du musst je Fahrzeug die Klasse wählen. Mögliche Werte:
 
 | Fahrzeug | Kennzeichen | alt | → neu |
 |---|---|---|---|
-| [x] Ford Transit Transporter | KLE-DC-146 | `PKW E` | `C_Transporter` ✅ (lt. Vermietungs-Angestellter: normaler Transporter) |
+| [x] Ford Transit Transporter | `KLE DC 146` | `PKW E` | `C_Transporter` ✅ (lt. Vermietungs-Angestellter: normaler Transporter) |
+
+> Hinweis: Kennzeichen ist in der DB als `KLE DC 146` (mit Leerzeichen) gespeichert,
+> nicht `KLE-DC-146` (Bindestriche). Nur kosmetisch — Preisgruppe stimmt.
 
 ---
 
@@ -111,8 +119,41 @@ Du musst je Fahrzeug die Klasse wählen. Mögliche Werte:
 
 ## Checkliste zum Abschluss
 
-- [ ] 5 „LKW"-Fahrzeuge auf `G_Transporter` / `F_Transporter` umgestellt
-- [ ] 15 Anhänger auf passende `Anhaenger_*`-Gruppe umgestellt (klein/groß + Pferdeanhänger geklärt)
-- [ ] „Ford Transit Transporter" (`PKW E`) korrigiert
-- [ ] Im Buchungsformular je 1 Fahrzeug pro Gruppe getestet → Preis erscheint, kein „keine Preisgruppe"
-- [ ] Bescheid geben → dann committen wir die Code-Fixes
+- [x] 5 „LKW"-Fahrzeuge auf `G_Transporter` / `F_Transporter` umgestellt ✅
+- [x] 16 Anhänger auf passende `Anhaenger_*`-Gruppe umgestellt (klein/groß + Pferdeanhänger geklärt) ✅
+- [x] „Ford Transit Transporter" (`PKW E`) korrigiert ✅
+- [x] DB-Stand am 27.06.2026 per service_role gegengeprüft — kein Fahrzeug mehr auf ungültiger Gruppe ✅
+- [x] Preis erscheint für jedes Fahrzeug ✅ — am 27.06.2026 per Skript mit der ECHTEN Matching-Logik aus BookingDialog.tsx durchgerechnet: alle 49 aktiven Fahrzeuge × (Privat + Gewerbe) = 98 Kombis, **0 ohne Preis**, alle 16 Anhänger inkl. Plane/Koffer liefern Tarif. Kein „keine Preisgruppe" mehr.
+
+---
+
+## ✅ Geprüft & korrekt (war kurz verdächtig)
+
+- **Citroen Jumper / KLE-PL-977 → `E_PKW` ist RICHTIG.** Laut Stammdatenblatt (AHK ja, **9 Sitze**,
+  Homebase Kranenburg) ist dieses Fahrzeug ein **9-Sitzer**-Personentransporter, kein Kastenwagen.
+  Der DB-Name „Citroen Jumper" (ohne „9-Sitzer") hatte einen Transporter vermuten lassen — falscher
+  Verdacht. Gehört korrekt in die 9-Sitzer-Gruppe `E_PKW`. **Nicht ändern.** (Geklärt 27.06.2026.)
+
+---
+
+## 📋 Vollabgleich DB ↔ offizielle PLT-Fahrzeugliste (Stand Liste: 28.11.2024 · geprüft 27.06.2026)
+
+Alle 48 Fahrzeuge der offiziellen Liste per Kennzeichen, Sitze und HU gegen die DB geprüft.
+**Ergebnis: DB stimmt fast vollständig überein.** Nur 2 Punkte zum Klären — und zwar von
+**PLT**, nicht durch Nachrecherche unsererseits (Liste/Realität entscheidet, nicht wir):
+
+1. **Fiat Punto / KLE PL 147:** DB-HU = **09.2026**, Liste = **9/21**. Jemand hat in DB auf 2026
+   hochgesetzt. PLT: welches stimmt? Nicht geändert.
+2. **Fiat Ducato / KLE PL 547:** DB-HU = **12.2026**, Liste = **12/21**. Wie Punto. PLT klären.
+
+**Entwarnt — `CD 146` / `DC 146` sind ZWEI echte Fahrzeuge (von Axel bestätigt):**
+`KLE-CD-146` = Ford Transit Custom, **9-Sitzer** → `D_PKW` (= Liste Nr. 2) ✅ ·
+`KLE DC 146` = Ford Transit **Transporter**, 3 Sitze → `C_Transporter` ✅. Beide korrekt in DB.
+(Ein früherer Abgleich hatte sie versehentlich als ein Fahrzeug zusammengeworfen.) Einzig kosmetisch:
+das eine KZ mit Bindestrichen, das andere mit Leerzeichen — unkritisch.
+
+**Wichtig — „TÜV: 32 überfällig" im Dashboard ist KORREKT, kein Bug:** Die HU-Daten in der DB
+entsprechen exakt der offiziellen Liste. Da diese vom 28.11.2024 ist und viele Termine aus
+2021–2023 enthält, sind ~32 Fahrzeuge real HU-überfällig. **PLT muss aktuelle HU-Termine pflegen** —
+das ist Stammdatenpflege beim Kunden, kein Softwarefehler. (14 Fahrzeuge haben gar kein HU-Datum
+in der DB → ebenfalls von PLT nachzutragen.)
