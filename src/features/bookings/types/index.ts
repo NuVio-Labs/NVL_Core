@@ -6,6 +6,7 @@ export type BookingUpdate = TablesUpdate<'bookings'>
 
 export type BookingWithCreator = Booking & {
   creator: { id: string; full_name: string | null; email: string } | null
+  updater: { id: string; full_name: string | null; email: string } | null
   resource: { id: string; name: string; metadata: Record<string, unknown> } | null
 }
 
