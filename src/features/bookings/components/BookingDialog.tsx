@@ -11,6 +11,7 @@ import { useDurationTariffMappings } from '../hooks/useDurationTariffMappings'
 import { useBookingFieldDefinitions } from '../hooks/useBookingFieldDefinitions'
 import { useCreateBooking, useUpdateBooking, useCancelBooking } from '../hooks/useBookings'
 import { bookingService } from '../service/bookingService'
+import { resourceCategory, matchPriceList, matchPriceClassItem, resolveTariff } from '../lib/pricing'
 import { useCompanySettings, useWorkspace } from '@/features/workspace'
 import { useCustomers, useCreateCustomer } from '@/features/customers'
 import type { Booking, BookingFieldDefinition, BookingWithCreator } from '../types'
@@ -195,29 +196,11 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   // Preisgruppen sind uneinheitlich geschrieben (z.B. "C_Transporter" UND
   // "Transporter_F" UND "G_Transporter") → mit includes statt startsWith
   // prüfen, sonst landet ein Transporter fälschlich in der PKW-Liste.
-  const resourceCategory = (() => {
-    if (!selectedResource) return null
-    const name = selectedResource.name.toLowerCase()
-    const meta = (selectedResource.metadata ?? {}) as Record<string, unknown>
-    const gruppe = String(meta[preisgruppeFeld] ?? '').toLowerCase()
-    if (gruppe.includes('anhaenger') || gruppe.includes('anhänger') || name.includes('anhänger') || name.includes('anhaenger')) return 'anhaenger'
-    if (gruppe.includes('transporter') || gruppe.includes('lkw')) return 'transporter'
-    return 'pkw'
-  })()
+  const category = selectedResource ? resourceCategory(selectedResource, preisgruppeFeld) : null
 
-  const matchingPriceList = (() => {
-    if (!selectedResource) return null
-    const isGewerbe = customerType === 'gewerbe'
-    return priceLists.find((pl) => {
-      if (!pl.is_active) return false
-      const n = pl.name.toLowerCase()
-      const typeMatch = isGewerbe ? n.includes('gewerbe') : n.includes('privat')
-      if (!typeMatch) return false
-      if (resourceCategory === 'anhaenger') return n.includes('anhänger') || n.includes('anhaenger')
-      if (resourceCategory === 'transporter') return n.includes('lkw') || n.includes('transporter')
-      return n.includes('pkw') || n.includes('9-sitzer')
-    }) ?? null
-  })()
+  const matchingPriceList = (!selectedResource || !category)
+    ? null
+    : matchPriceList(priceLists, category, customerType === 'gewerbe')
 
   // Auto-set price list when resource or customer type changes
   useEffect(() => {
@@ -263,32 +246,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   const { data: priceListItems = [] } = usePriceListItems(watchedPriceListId || undefined)
   const resourceMeta = (selectedResource?.metadata ?? {}) as Record<string, unknown>
   const preisgruppe = resourceMeta[preisgruppeFeld] as string | undefined
-  const matchingItem = preisgruppe
-    ? (() => {
-        const pg = preisgruppe.trim().toLowerCase()
-        // Kategorie-Wörter entfernen → Kern (z.B. nur der Klassenbuchstabe).
-        const stripCategory = (s: string) =>
-          s.toLowerCase()
-            .replace(/pkw|9-?sitzer|lkw|transporter|anh(ae|ä)nger/g, '')
-            .replace(/[_\s]+/g, '')
-            .trim()
-        const pgCore = stripCategory(pg)
-
-        // 1. Exakter Name (case-insensitive)
-        const exact = priceListItems.find((it) => it.name.trim().toLowerCase() === pg)
-        if (exact) return exact
-
-        // 2. Gleicher Kern nach Entfernen der Kategorie (B_PKW ↔ B, E_PKW ↔ PKW_E,
-        //    C_Transporter ↔ Transporter_C). Nur wenn der Kern nicht leer ist.
-        if (pgCore) {
-          const byCore = priceListItems.find((it) => stripCategory(it.name) === pgCore)
-          if (byCore) return byCore
-        }
-
-        // Kein verlässlicher Treffer → bewusst kein (falscher) Preis.
-        return undefined
-      })()
-    : undefined
+  const matchingItem = matchPriceClassItem(priceListItems, preisgruppe)
 
   // Nur die Dauern anbieten, für die das gewählte Fahrzeug (= matchingItem)
   // tatsächlich einen Tarif hat. So ergibt sich die Mindestmiete automatisch
@@ -316,22 +274,12 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   })()
 
   // Calculate price
-  const { basePrice, kmPrice, calculatedPrice } = (() => {
-    if (!matchingItem || !selectedMapping) return { basePrice: null, kmPrice: null, calculatedPrice: null }
-    const itemMeta = (matchingItem.metadata ?? {}) as Record<string, unknown>
-    const val = itemMeta[selectedMapping.field_name]
-    if (val === undefined || val === null || val === '') return { basePrice: null, kmPrice: null, calculatedPrice: null }
-    const base = Number(String(val).replace(',', '.')) * durationFactor
-
-    let km: number | null = null
-    if (watchedKmPackage && itemMeta[watchedKmPackage] !== undefined) {
-      const kmVal = String(itemMeta[watchedKmPackage]).replace(',', '.')
-      km = Number(kmVal)
-      if (isNaN(km)) km = null
-    }
-
-    return { basePrice: base, kmPrice: km, calculatedPrice: base + (km ?? 0) }
-  })()
+  const { basePrice, kmPrice, calculatedPrice } = resolveTariff(
+    matchingItem,
+    selectedMapping?.field_name,
+    durationFactor,
+    watchedKmPackage || undefined,
+  )
 
   // Fahrzeug + Dauer gewählt, aber kein Preis ermittelbar (fehlende Preisgruppe
   // ODER kein Tarifwert für diese Dauer) → klar anzeigen statt still Null buchen.
