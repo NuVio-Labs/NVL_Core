@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { cn } from '@/lib/utils'
+import { cn, normalizePlate, isLicensePlateField } from '@/lib/utils'
 import { useFieldDefinitions } from '../hooks/useFieldDefinitions'
 import { useResourceClasses } from '@/features/pricing/hooks/usePriceListItems'
 import { useLocations } from '@/features/locations/hooks/useLocations'
@@ -82,7 +82,7 @@ export function ResourceForm({ resource, onSubmit, onCancel, isLoading }: Props)
     defaultMetadata[def.name] = existingMeta[def.name] ?? (def.field_type === 'boolean' ? false : '')
   }
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: resource?.name ?? '',
@@ -91,6 +91,18 @@ export function ResourceForm({ resource, onSubmit, onCancel, isLoading }: Props)
       metadata: defaultMetadata,
     },
   })
+
+  // Kennzeichen einheitlich speichern (Großschreibung + Bindestriche). Greift
+  // unabhängig davon, ob der Nutzer das Feld onBlur ausgelöst hat.
+  function normalizeBeforeSubmit(values: FormValues): FormValues {
+    const meta = { ...values.metadata }
+    for (const def of definitions) {
+      if (isLicensePlateField(def.name) && typeof meta[def.name] === 'string') {
+        meta[def.name] = normalizePlate(meta[def.name] as string)
+      }
+    }
+    return { ...values, metadata: meta }
+  }
 
   useEffect(() => {
     const meta: Record<string, unknown> = {}
@@ -108,7 +120,7 @@ export function ResourceForm({ resource, onSubmit, onCancel, isLoading }: Props)
   const metaErrors = (errors.metadata ?? {}) as Record<string, { message?: string }>
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit((values) => onSubmit(normalizeBeforeSubmit(values)))} className="space-y-4">
       {/* Basisfelder */}
       <div className="space-y-1">
         <label className="text-sm font-medium" htmlFor="name">Name</label>
@@ -270,6 +282,11 @@ export function ResourceForm({ resource, onSubmit, onCancel, isLoading }: Props)
               )
             }
 
+            // Kennzeichen-Feld: beim Verlassen direkt auf einheitliche
+            // Schreibweise normalisieren (GROSS + Bindestriche), damit der Wert
+            // sichtbar konsistent wird. Submit normalisiert zusätzlich.
+            const isPlate = isLicensePlateField(def.name)
+            const plateReg = register(`metadata.${def.name}` as never)
             return (
               <div key={def.id} className="space-y-1">
                 <label className="text-sm font-medium" htmlFor={`metadata.${def.name}`}>
@@ -278,12 +295,26 @@ export function ResourceForm({ resource, onSubmit, onCancel, isLoading }: Props)
                 <input
                   id={`metadata.${def.name}`}
                   type={def.field_type === 'number' ? 'number' : 'text'}
-                  {...register(`metadata.${def.name}` as never)}
+                  {...plateReg}
+                  onBlur={isPlate
+                    ? (e) => {
+                        const normalized = normalizePlate(e.target.value)
+                        if (normalized !== e.target.value) {
+                          setValue(`metadata.${def.name}` as never, normalized as never)
+                        }
+                        plateReg.onBlur(e)
+                      }
+                    : plateReg.onBlur}
                   className={cn(
                     'w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring',
                     fieldError ? 'border-destructive' : 'border-input',
                   )}
                 />
+                {isPlate && (
+                  <p className="text-xs text-muted-foreground">
+                    Wird automatisch als GROSS mit Bindestrichen gespeichert, z.&nbsp;B. KLE-PL-977.
+                  </p>
+                )}
                 {fieldError && <p className="text-destructive text-xs">{fieldError}</p>}
               </div>
             )
