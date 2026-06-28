@@ -123,6 +123,7 @@ export type Database = {
           starts_at: string
           status: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           company_id: string
@@ -144,6 +145,7 @@ export type Database = {
           starts_at: string
           status?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           company_id?: string
@@ -165,6 +167,7 @@ export type Database = {
           starts_at?: string
           status?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -207,6 +210,13 @@ export type Database = {
             columns: ["resource_id"]
             isOneToOne: false
             referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

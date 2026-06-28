@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X, AlertTriangle, Info, UserPlus } from 'lucide-react'
+import { X, AlertTriangle, Info, UserPlus, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useResources } from '@/features/resources/hooks/useResources'
 import { usePriceLists } from '@/features/pricing/hooks/usePriceLists'
 import { usePriceListItems } from '@/features/pricing/hooks/usePriceListItems'
 import { useDurationTariffMappings } from '../hooks/useDurationTariffMappings'
 import { useBookingFieldDefinitions } from '../hooks/useBookingFieldDefinitions'
-import { useCreateBooking, useUpdateBooking, useCancelBooking } from '../hooks/useBookings'
+import { useCreateBooking, useUpdateBooking, useCancelBooking, useBookingsForRange } from '../hooks/useBookings'
 import { bookingService } from '../service/bookingService'
+import { ContractDataView } from './ContractDataView'
 import { resourceCategory, matchPriceList, matchPriceClassItem, resolveTariff } from '../lib/pricing'
 import { useCompanySettings, useWorkspace } from '@/features/workspace'
 import { useCustomers, useCreateCustomer } from '@/features/customers'
@@ -103,6 +104,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [customerType, setCustomerType] = useState<'privat' | 'gewerbe'>('privat')
   const [savedAsCustomer, setSavedAsCustomer] = useState(false)
+  const [showContractData, setShowContractData] = useState(false)
   const createCustomer = useCreateCustomer()
 
   const metaSchema = buildMetaSchema(fieldDefinitions)
@@ -229,6 +231,35 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
     return { startsAt: start, endsAt: end }
   })()
 
+  // Belegte Fahrzeuge zum gewählten Startzeitpunkt ermitteln, damit das
+  // Dropdown sie rot + gesperrt anzeigen kann (idiotensicher: man kann ein
+  // belegtes Fahrzeug gar nicht erst auswählen). Geprüft wird der gewählte
+  // Start (Datum + Uhrzeit); die eigene Buchung beim Bearbeiten zählt nicht.
+  const startMoment = (watchedDate && watchedTime) ? new Date(`${watchedDate}T${watchedTime}:00`) : null
+  // Stabile Tagesgrenzen (Mitternacht) → konstanter Query-Key, keine Refetches
+  // bei jedem Render. Ohne gewähltes Datum ein fester Epoch-Tag (Query läuft
+  // zwar, liefert nichts Relevantes — occupiedAt bleibt leer, weil startMoment null).
+  const dayStart = startMoment
+    ? new Date(startMoment.getFullYear(), startMoment.getMonth(), startMoment.getDate())
+    : new Date(0)
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+  const { data: dayBookings = [] } = useBookingsForRange(dayStart, dayEnd)
+
+  // Set der Fahrzeug-IDs, die den gewählten Startzeitpunkt belegen.
+  const occupiedAt = (() => {
+    const set = new Set<string>()
+    if (!startMoment) return set
+    for (const b of dayBookings) {
+      if (booking && b.id === booking.id) continue // eigene Buchung ignorieren
+      const bStart = new Date(b.starts_at)
+      const bEnd = new Date(b.ends_at)
+      if (bStart <= startMoment && bEnd > startMoment) {
+        set.add(b.resource_id)
+      }
+    }
+    return set
+  })()
+
   // Check availability when resource + time changes
   useEffect(() => {
     if (!watchedResourceId || !startsAt || !endsAt) { setAvailability(null); return }
@@ -344,13 +375,15 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
       price_snapshot: calculatedPrice ?? null,
       notes: values.notes || null,
       metadata: values.metadata ?? {},
-      created_by: activeMembership?.profile_id ?? null,
     }
 
+    const me = activeMembership?.profile_id ?? null
     if (booking) {
-      await updateBooking.mutateAsync({ id: booking.id, payload })
+      // Bearbeiten: nur updated_by setzen — created_by (Ersteller) bleibt unberührt.
+      await updateBooking.mutateAsync({ id: booking.id, payload: { ...payload, updated_by: me } })
     } else {
-      await createBooking.mutateAsync(payload)
+      // Neu: created_by = Ersteller.
+      await createBooking.mutateAsync({ ...payload, created_by: me })
     }
     resetForm()
     onClose()
@@ -379,11 +412,20 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
             <h2 className="text-lg font-semibold">
               {booking ? 'Buchung bearbeiten' : 'Buchung anlegen'}
             </h2>
-            {'creator' in (booking ?? {}) && (booking as BookingWithCreator).creator && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Angelegt von: {(booking as BookingWithCreator).creator!.full_name ?? (booking as BookingWithCreator).creator!.email}
-              </p>
-            )}
+            {booking && (() => {
+              const b = booking as BookingWithCreator
+              const fmt = (iso?: string | null) =>
+                iso ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+              const name = (p: BookingWithCreator['creator']) => p ? (p.full_name ?? p.email) : null
+              const creatorName = 'creator' in b ? name(b.creator) : null
+              const updaterName = 'updater' in b ? name(b.updater) : null
+              return (
+                <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                  {creatorName && <p>Angelegt von {creatorName}{b.created_at ? ` · ${fmt(b.created_at)}` : ''}</p>}
+                  {updaterName && <p>Zuletzt bearbeitet von {updaterName}{b.updated_at ? ` · ${fmt(b.updated_at)}` : ''}</p>}
+                </div>
+              )
+            })()}
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
@@ -513,7 +555,22 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
                   const loc = m.standort ? ` — ${m.standort}` : ''
                   const t = typ(r)
                   const tStr = t ? ` · ${t}` : ''
-                  return `${r.name}${kz}${tStr}${loc}`
+                  const occStr = occupiedAt.has(r.id) ? ' — belegt' : ''
+                  return `${r.name}${kz}${tStr}${loc}${occStr}`
+                }
+                // Eine Fahrzeug-Option rendern — belegte sind gesperrt + rot.
+                const opt = (r: Resource) => {
+                  const isOccupied = occupiedAt.has(r.id)
+                  return (
+                    <option
+                      key={r.id}
+                      value={r.id}
+                      disabled={isOccupied}
+                      style={isOccupied ? { color: '#dc2626' } : undefined}
+                    >
+                      {label(r)}
+                    </option>
+                  )
                 }
                 const sorted = [...active].sort((a, b) => byGroup(a).localeCompare(byGroup(b)))
 
@@ -533,9 +590,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
                   }
                   return Array.from(groups.entries()).map(([g, items]) => (
                     <optgroup key={g} label={g.replace(/_/g, ' ')}>
-                      {items.map((r) => (
-                        <option key={r.id} value={r.id}>{label(r)}</option>
-                      ))}
+                      {items.map((r) => opt(r))}
                     </optgroup>
                   ))
                 }
@@ -544,7 +599,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
                   <>
                     {here.length > 0 && (
                       <optgroup label={`── Mein Standort (${staffStandort}) ──`}>
-                        {here.map((r) => <option key={r.id} value={r.id}>{label(r)}</option>)}
+                        {here.map((r) => opt(r))}
                       </optgroup>
                     )}
                     {renderGroup(other)}
@@ -553,6 +608,12 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
               })()}
             </select>
             {errors.resource_id && <p className="text-destructive text-xs">{errors.resource_id.message}</p>}
+            {watchedResourceId && occupiedAt.has(watchedResourceId) && (
+              <div className="flex items-start gap-2 px-3 py-2 mt-1 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>Dieses Fahrzeug ist zum gewählten Startzeitpunkt bereits belegt — bitte ein anderes wählen.</span>
+              </div>
+            )}
           </div>
 
           {/* Standort-Warnung */}
@@ -794,6 +855,16 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
                   Stornieren
                 </button>
               )}
+              {booking && (
+                <button
+                  type="button"
+                  onClick={() => setShowContractData(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors"
+                  title="Vertragsdaten zum Abschreiben anzeigen"
+                >
+                  <FileText className="w-4 h-4" /> Vertragsdaten
+                </button>
+              )}
             </div>
             <div className="flex gap-2">
               <button
@@ -805,8 +876,12 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
               </button>
               <button
                 type="submit"
-                disabled={isMutating || availability === false || priceUnavailable}
-                title={priceUnavailable ? 'Kein Preis ermittelbar — bitte Preisgruppe/Tarif prüfen.' : undefined}
+                disabled={isMutating || availability === false || priceUnavailable || (!!watchedResourceId && occupiedAt.has(watchedResourceId))}
+                title={
+                  watchedResourceId && occupiedAt.has(watchedResourceId)
+                    ? 'Fahrzeug ist zum Startzeitpunkt belegt.'
+                    : priceUnavailable ? 'Kein Preis ermittelbar — bitte Preisgruppe/Tarif prüfen.' : undefined
+                }
                 className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {isMutating ? 'Speichern…' : 'Speichern'}
@@ -815,6 +890,12 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
           </div>
         </form>
       </div>
+
+      <ContractDataView
+        open={showContractData}
+        booking={booking ?? null}
+        onClose={() => setShowContractData(false)}
+      />
     </div>
   )
 }
