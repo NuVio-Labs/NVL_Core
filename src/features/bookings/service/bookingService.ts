@@ -61,6 +61,10 @@ export const bookingService = {
    * `metadata.return` abgelegt — bestehende metadata bleibt erhalten. Setzt
    * `returned_at` serverseitig nicht, sondern aus Client-Zeit, damit die im UI
    * angezeigte Uhrzeit exakt der gespeicherten entspricht.
+   *
+   * Zusätzlich wird der Buchungs-`status` auf `completed` gesetzt: damit gilt
+   * die Buchung fachlich als abgeschlossen, fällt aus „überfällig" heraus und
+   * wird im Kalender/Dashboard grün statt rot dargestellt.
    */
   async markReturned(id: string, input: MarkReturnedInput): Promise<Booking> {
     const { data: current, error: readError } = await supabase
@@ -81,7 +85,7 @@ export const bookingService = {
 
     const { data, error } = await supabase
       .from('bookings')
-      .update({ metadata })
+      .update({ metadata, status: 'completed' })
       .eq('id', id)
       .select()
       .single()
@@ -89,7 +93,10 @@ export const bookingService = {
     return data
   },
 
-  /** Widerruft eine eingetragene Rückgabe — entfernt `metadata.return` wieder. */
+  /**
+   * Widerruft eine eingetragene Rückgabe — entfernt `metadata.return` wieder
+   * und setzt den `status` zurück auf `confirmed` (Buchung wieder offen).
+   */
   async undoReturn(id: string): Promise<Booking> {
     const { data: current, error: readError } = await supabase
       .from('bookings')
@@ -103,7 +110,7 @@ export const bookingService = {
 
     const { data, error } = await supabase
       .from('bookings')
-      .update({ metadata })
+      .update({ metadata, status: 'confirmed' })
       .eq('id', id)
       .select()
       .single()

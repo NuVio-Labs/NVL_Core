@@ -22,6 +22,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-06-29',
+    title: 'Update 29.06.2026',
+    date: '29.06.2026',
+    changes: [
+      { type: 'improved', text: 'Zurückgenommene Fahrzeuge werden im Kalender jetzt grün als „Abgeschlossen" angezeigt — nicht mehr rot als überfällig.' },
+      { type: 'improved', text: 'Auch Bearbeiter können Fahrzeugrückgaben eintragen; das Fahrzeug zählt danach sofort wieder als verfügbar.' },
+      { type: 'fixed', text: 'Die Detail-Vorschau im Kalender (beim Überfahren einer Buchung) hat jetzt wieder einen deckenden Hintergrund.' },
+      { type: 'improved', text: 'Kalender-Legende und Statusfilter um „Abgeschlossen" ergänzt.' },
+    ],
+  },
+  {
     id: '2026-06-28',
     title: 'Update 28.06.2026',
     date: '28.06.2026',
