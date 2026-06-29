@@ -3,6 +3,7 @@ import { RootLayout } from '@/app/router/RootLayout'
 import { ProtectedRoute } from '@/app/router/ProtectedRoute'
 import { OnboardingGuard } from '@/app/router/OnboardingGuard'
 import { RouteErrorBoundary } from '@/app/router/RouteErrorBoundary'
+import { lazyWithReload } from '@/app/router/lazyWithReload'
 import { AppShell } from '@/app/shell/AppShell'
 
 const router = createBrowserRouter([
@@ -13,29 +14,29 @@ const router = createBrowserRouter([
     children: [
       {
         path: 'login',
-        lazy: () => import('@/pages/LoginPage').then((m) => ({ Component: m.LoginPage })),
+        lazy: lazyWithReload(() => import('@/pages/LoginPage'), (m) => m.LoginPage),
       },
       {
         path: 'signup',
-        lazy: () => import('@/pages/SignupPage').then((m) => ({ Component: m.SignupPage })),
+        lazy: lazyWithReload(() => import('@/pages/SignupPage'), (m) => m.SignupPage),
       },
       // Onboarding is outside ProtectedRoute so the Supabase invite token can be
       // processed by onAuthStateChange before the session guard runs.
       {
         path: 'onboarding',
-        lazy: () => import('@/pages/OnboardingPage').then((m) => ({ Component: m.OnboardingPage })),
+        lazy: lazyWithReload(() => import('@/pages/OnboardingPage'), (m) => m.OnboardingPage),
       },
       {
         path: 'forgot-password',
-        lazy: () => import('@/pages/ForgotPasswordPage').then((m) => ({ Component: m.ForgotPasswordPage })),
+        lazy: lazyWithReload(() => import('@/pages/ForgotPasswordPage'), (m) => m.ForgotPasswordPage),
       },
       {
         path: 'reset-password',
-        lazy: () => import('@/pages/ResetPasswordPage').then((m) => ({ Component: m.ResetPasswordPage })),
+        lazy: lazyWithReload(() => import('@/pages/ResetPasswordPage'), (m) => m.ResetPasswordPage),
       },
       {
         path: 'datenschutz',
-        lazy: () => import('@/pages/DatenschutzPage').then((m) => ({ Component: m.DatenschutzPage })),
+        lazy: lazyWithReload(() => import('@/pages/DatenschutzPage'), (m) => m.DatenschutzPage),
       },
       {
         element: <ProtectedRoute />,
@@ -48,31 +49,31 @@ const router = createBrowserRouter([
                 children: [
                   {
                     index: true,
-                    lazy: () => import('@/pages/DashboardPage').then((m) => ({ Component: m.DashboardPage })),
+                    lazy: lazyWithReload(() => import('@/pages/DashboardPage'), (m) => m.DashboardPage),
                   },
                   {
                     path: 'bookings',
-                    lazy: () => import('@/pages/BookingsPage').then((m) => ({ Component: m.BookingsPage })),
+                    lazy: lazyWithReload(() => import('@/pages/BookingsPage'), (m) => m.BookingsPage),
                   },
                   {
                     path: 'resources',
-                    lazy: () => import('@/pages/ResourcesPage').then((m) => ({ Component: m.ResourcesPage })),
+                    lazy: lazyWithReload(() => import('@/pages/ResourcesPage'), (m) => m.ResourcesPage),
                   },
                   {
                     path: 'pricing',
-                    lazy: () => import('@/pages/PricingPage').then((m) => ({ Component: m.PricingPage })),
+                    lazy: lazyWithReload(() => import('@/pages/PricingPage'), (m) => m.PricingPage),
                   },
                   {
                     path: 'customers',
-                    lazy: () => import('@/pages/CustomersPage').then((m) => ({ Component: m.CustomersPage })),
+                    lazy: lazyWithReload(() => import('@/pages/CustomersPage'), (m) => m.CustomersPage),
                   },
                   {
                     path: 'staff',
-                    lazy: () => import('@/pages/StaffPage').then((m) => ({ Component: m.StaffPage })),
+                    lazy: lazyWithReload(() => import('@/pages/StaffPage'), (m) => m.StaffPage),
                   },
                   {
                     path: 'settings',
-                    lazy: () => import('@/pages/SettingsPage').then((m) => ({ Component: m.SettingsPage })),
+                    lazy: lazyWithReload(() => import('@/pages/SettingsPage'), (m) => m.SettingsPage),
                   },
                 ],
               },
