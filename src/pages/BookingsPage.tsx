@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Search, X, LayoutList, CalendarDays, Plus, F
 import { useBookingsByMonth } from '@/features/bookings/hooks/useBookings'
 import { BookingDialog } from '@/features/bookings/components/BookingDialog'
 import { ContractDataView } from '@/features/bookings/components/ContractDataView'
+import { getReturnInfo } from '@/features/bookings/types'
 import type { BookingWithCreator } from '@/features/bookings/types'
 import { cn } from '@/lib/utils'
 
@@ -32,9 +33,14 @@ function isSameDay(a: Date, b: Date) {
     a.getDate() === b.getDate()
 }
 
-type BookingStatus = 'overdue' | 'ending-today' | 'active'
+type BookingStatus = 'completed' | 'overdue' | 'ending-today' | 'active'
 
 function getBookingStatus(booking: BookingWithCreator, today: Date): BookingStatus {
+  // Zurückgenommene Buchungen sind fachlich abgeschlossen → grün, unabhängig
+  // von der Endzeit (zählt nicht mehr als „überfällig"). Sowohl der neue
+  // status='completed' als auch Alt-Rücknahmen (nur metadata.return gesetzt,
+  // ohne Status) werden hier abgedeckt.
+  if (booking.status === 'completed' || getReturnInfo(booking)) return 'completed'
   const end = new Date(booking.ends_at)
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
@@ -44,6 +50,7 @@ function getBookingStatus(booking: BookingWithCreator, today: Date): BookingStat
 }
 
 const STATUS_CHIP: Record<BookingStatus, string> = {
+  'completed':    'bg-green-100 text-green-800 hover:bg-green-200',
   'active':       'bg-blue-100 text-blue-800 hover:bg-blue-200',
   'ending-today': 'bg-orange-100 text-orange-800 hover:bg-orange-200',
   'overdue':      'bg-red-100 text-red-800 hover:bg-red-200',
@@ -93,7 +100,7 @@ function BookingChip({ booking, today, day, onClick }: {
       </div>
       {hovered && (
         <div
-          className="absolute z-50 left-0 top-full mt-1 w-56 bg-popover border border-border rounded-md shadow-lg p-3 space-y-1 text-xs pointer-events-none"
+          className="absolute z-50 left-0 top-full mt-1 w-56 bg-background text-foreground border border-border rounded-md shadow-lg p-3 space-y-1 text-xs pointer-events-none"
           onClick={(e) => e.stopPropagation()}
         >
           <p className="font-semibold text-foreground">{booking.first_name} {booking.last_name}</p>
@@ -114,12 +121,14 @@ function BookingChip({ booking, today, day, onClick }: {
 }
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
+  'completed': 'Abgeschlossen',
   'active': 'Aktiv',
   'ending-today': 'Endet heute',
   'overdue': 'Überfällig',
 }
 
 const STATUS_PILL: Record<BookingStatus, string> = {
+  'completed': 'bg-green-100 text-green-800',
   'active': 'bg-blue-100 text-blue-800',
   'ending-today': 'bg-orange-100 text-orange-800',
   'overdue': 'bg-red-100 text-red-800',
@@ -257,7 +266,7 @@ export function BookingsPage() {
   const { data: bookings = [], isLoading } = useBookingsByMonth(year, month)
 
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'alle' | 'active' | 'ending-today' | 'overdue'>('alle')
+  const [filterStatus, setFilterStatus] = useState<'alle' | 'active' | 'ending-today' | 'overdue' | 'completed'>('alle')
 
   const filteredBookings = useMemo(() => {
     let list = bookings
@@ -387,6 +396,7 @@ export function BookingsPage() {
           <option value="active">Aktiv</option>
           <option value="ending-today">Endet heute</option>
           <option value="overdue">Überfällig</option>
+          <option value="completed">Abgeschlossen</option>
         </select>
         {hasFilter && (
           <button
@@ -445,8 +455,8 @@ export function BookingsPage() {
               <tbody className="divide-y divide-border">
                 {filteredBookings.map((b) => {
                   const status = getBookingStatus(b, today)
-                  const statusLabel = { active: 'Aktiv', 'ending-today': 'Endet heute', overdue: 'Überfällig' }[status]
-                  const statusClass = { active: 'bg-blue-100 text-blue-800', 'ending-today': 'bg-orange-100 text-orange-800', overdue: 'bg-red-100 text-red-800' }[status]
+                  const statusLabel = { completed: 'Abgeschlossen', active: 'Aktiv', 'ending-today': 'Endet heute', overdue: 'Überfällig' }[status]
+                  const statusClass = { completed: 'bg-green-100 text-green-800', active: 'bg-blue-100 text-blue-800', 'ending-today': 'bg-orange-100 text-orange-800', overdue: 'bg-red-100 text-red-800' }[status]
                   return (
                     <tr
                       key={b.id}
@@ -589,6 +599,10 @@ export function BookingsPage() {
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-red-100 border border-red-200" />
           Überfällig
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded bg-green-100 border border-green-200" />
+          Abgeschlossen
         </span>
       </div>}
 

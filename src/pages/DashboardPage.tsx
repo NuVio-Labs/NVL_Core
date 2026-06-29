@@ -425,11 +425,12 @@ export function DashboardPage() {
   const currentUserId = user?.id ?? ''
   const currentUserName = profile?.full_name?.trim() || profile?.email || 'Unbekannt'
 
-  // Flottenstatus (heute gebucht = vermietet)
+  // Flottenstatus (heute gebucht = vermietet). Abgeschlossene (zurückgegebene)
+  // Buchungen zählen nicht mehr als vermietet — das Fahrzeug ist wieder frei.
   const fleetStatus = useMemo(() => {
     const bookedIds = new Set(
       todayBookings
-        .filter((b) => new Date(b.starts_at) <= todayEnd && new Date(b.ends_at) >= todayStart)
+        .filter((b) => b.status !== 'completed' && new Date(b.starts_at) <= todayEnd && new Date(b.ends_at) >= todayStart)
         .map((b) => b.resource_id),
     )
     let verfuegbar = 0, vermietet = 0, werkstatt = 0
@@ -456,9 +457,9 @@ export function DashboardPage() {
     [weekBookings],
   )
 
-  // Aktive Vermietungen (läuft gerade)
+  // Aktive Vermietungen (läuft gerade) — abgeschlossene (zurückgegebene) raus.
   const activeRentals = useMemo(
-    () => todayBookings.filter((b) => b.status !== 'cancelled' && new Date(b.starts_at) <= now && new Date(b.ends_at) >= now),
+    () => todayBookings.filter((b) => b.status !== 'cancelled' && b.status !== 'completed' && new Date(b.starts_at) <= now && new Date(b.ends_at) >= now),
     [todayBookings],
   )
 
