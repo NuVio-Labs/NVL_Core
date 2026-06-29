@@ -8,8 +8,7 @@ import { WhatsNew } from './WhatsNew'
 
 export function Header() {
   const { profile, signOut } = useAuth()
-  const { activeCompany, memberships, switchCompany, activeRole } = useWorkspace()
-  const isAdmin = activeRole === 'admin' || activeRole === 'owner'
+  const { activeCompany, memberships, switchCompany } = useWorkspace()
   const { toggle } = useSidebar()
   const [companyOpen, setCompanyOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
@@ -79,8 +78,8 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1">
-      {/* Was ist neu — nur Admins */}
-      {isAdmin && <WhatsNew />}
+      {/* Was ist neu — für alle Rollen sichtbar */}
+      <WhatsNew />
 
       {/* User Menu */}
       <div className="relative" ref={userRef}>
