@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { UserPlus, Pencil, Trash2, Users } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useCan } from '@/features/workspace'
 import { useCustomers, useDeleteCustomer } from '@/features/customers'
 import { CustomerDialog } from '@/features/customers/components/CustomerDialog'
@@ -8,6 +9,7 @@ import type { Customer } from '@/features/customers'
 
 export function CustomersPage() {
   const can = useCan()
+  const confirm = useConfirm()
   const { data: customers = [], isLoading } = useCustomers()
   const deleteCustomer = useDeleteCustomer()
 
@@ -39,8 +41,9 @@ export function CustomersPage() {
     setDialogOpen(true)
   }
 
-  function handleDelete(customer: Customer) {
-    if (!confirm(`${customer.first_name} ${customer.last_name} wirklich löschen?`)) return
+  async function handleDelete(customer: Customer) {
+    const ok = await confirm({ message: `${customer.first_name} ${customer.last_name} wirklich löschen?` })
+    if (!ok) return
     deleteCustomer.mutate(customer.id)
   }
 

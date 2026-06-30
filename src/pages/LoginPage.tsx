@@ -36,9 +36,11 @@ export function LoginPage() {
       <div className="relative w-full max-w-sm">
         <div className="rounded-2xl border border-white/60 bg-white/60 p-8 shadow-xl shadow-slate-900/5 backdrop-blur-xl ring-1 ring-white/40">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-lg font-bold text-white shadow-lg shadow-slate-900/20">
-              N
-            </div>
+            <img
+              src="/assets/Icon.webp"
+              alt="NuVio"
+              className="mx-auto mb-4 h-16 w-16 rounded-xl object-cover shadow-lg shadow-slate-900/20"
+            />
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">NuVio Core</h1>
             <p className="mt-1 text-sm text-slate-500">Melde dich an</p>
           </div>

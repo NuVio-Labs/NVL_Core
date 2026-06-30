@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pencil, Trash2, UserCog, UserPlus } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useCan } from '@/features/workspace'
 import { useStaffMembers, useDeleteStaffMember, useStaffFieldDefinitions } from '@/features/staff/hooks/useStaff'
 import { StaffDialog } from '@/features/staff/components/StaffDialog'
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function StaffPage() {
   const can = useCan()
+  const confirm = useConfirm()
   const { data: members = [], isLoading } = useStaffMembers()
   const { data: fieldDefinitions = [] } = useStaffFieldDefinitions()
   const deleteMember = useDeleteStaffMember()
@@ -42,8 +44,13 @@ export function StaffPage() {
 
   const canManage = can('users', 'manage_roles')
 
-  function handleDelete(member: StaffMembership) {
-    if (!confirm(`${member.profile.full_name ?? member.profile.email} wirklich entfernen?`)) return
+  async function handleDelete(member: StaffMembership) {
+    const ok = await confirm({
+      title: 'Mitarbeiter entfernen',
+      message: `${member.profile.full_name ?? member.profile.email} wirklich entfernen?`,
+      confirmLabel: 'Entfernen',
+    })
+    if (!ok) return
     deleteMember.mutate(member.id)
   }
 

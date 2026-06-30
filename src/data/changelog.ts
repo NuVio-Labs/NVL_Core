@@ -22,6 +22,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-06-30',
+    title: 'Update 30.06.2026',
+    date: '30.06.2026',
+    changes: [
+      { type: 'improved', text: 'Buchungen lassen sich jetzt direkt vom Dashboard aus öffnen — ein Klick auf eine Buchung führt sofort zu Details und Vertragsdaten, ohne Umweg über die Buchungsliste.' },
+      { type: 'improved', text: 'Sicherheitsabfragen vor dem Löschen erscheinen jetzt als gestaltetes Fenster im Design der App statt als schlichtes Browser-Pop-up — einheitlich auf allen Seiten.' },
+      { type: 'improved', text: 'Das echte NuVio-Logo erscheint jetzt überall: auf der Anmeldeseite, in der Seitenleiste sowie beim Installieren und auf dem Startbildschirm.' },
+    ],
+  },
+  {
     id: '2026-06-29',
     title: 'Update 29.06.2026',
     date: '29.06.2026',

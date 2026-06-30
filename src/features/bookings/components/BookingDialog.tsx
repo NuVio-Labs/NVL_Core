@@ -13,6 +13,7 @@ import { useCreateBooking, useUpdateBooking, useCancelBooking, useBookingsForRan
 import { bookingService } from '../service/bookingService'
 import { ContractDataView } from './ContractDataView'
 import { resourceCategory, matchPriceList, matchPriceClassItem, resolveTariff } from '../lib/pricing'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useCompanySettings, useWorkspace } from '@/features/workspace'
 import { useCustomers, useCreateCustomer } from '@/features/customers'
 import type { Booking, BookingFieldDefinition, BookingWithCreator } from '../types'
@@ -106,6 +107,7 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   const [savedAsCustomer, setSavedAsCustomer] = useState(false)
   const [showContractData, setShowContractData] = useState(false)
   const createCustomer = useCreateCustomer()
+  const confirm = useConfirm()
 
   const metaSchema = buildMetaSchema(fieldDefinitions)
   const schema = baseSchema
@@ -391,7 +393,12 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
 
   async function handleCancel() {
     if (!booking) return
-    if (!confirm('Buchung wirklich stornieren?')) return
+    const ok = await confirm({
+      title: 'Buchung stornieren',
+      message: 'Buchung wirklich stornieren?',
+      confirmLabel: 'Stornieren',
+    })
+    if (!ok) return
     await cancelBooking.mutateAsync(booking.id)
     resetForm()
     onClose()

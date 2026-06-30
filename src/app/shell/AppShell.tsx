@@ -4,6 +4,7 @@ import { Header } from './Header'
 import { PageErrorBoundary } from './PageErrorBoundary'
 import { SidebarProvider, useSidebar } from './SidebarContext'
 import { CommandPalette } from '@/components/CommandPalette'
+import { ConfirmProvider } from '@/components/ConfirmDialog'
 
 function AppShellInner() {
   const { open, close } = useSidebar()
@@ -39,9 +40,11 @@ function AppShellInner() {
 
 export function AppShell() {
   return (
-    <SidebarProvider>
-      <AppShellInner />
-      <CommandPalette />
-    </SidebarProvider>
+    <ConfirmProvider>
+      <SidebarProvider>
+        <AppShellInner />
+        <CommandPalette />
+      </SidebarProvider>
+    </ConfirmProvider>
   )
 }

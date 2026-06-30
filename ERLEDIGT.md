@@ -5,6 +5,23 @@ Konsolidiertes Protokoll abgeschlossener Arbeiten. Zusammengeführt am 27.06.202
 
 ---
 
+## Quick Wins — abgeschlossen 30.06.2026
+
+- **Dashboard-Buchungszeilen klickbar:** Klick auf eine Buchung (Abholungen/Rückgaben/aktive
+  Vermietungen/eigene Termine) öffnet sie direkt im BookingDialog inkl. „Vertragsdaten" — spart
+  Navigation Dashboard → Buchungen → Vertrag. Nur für Rollen mit Bearbeitungsrecht (Admin/Editor),
+  Mitarbeiter sehen die Zeilen weiterhin als reine Anzeige. Wiederverwendung der bestehenden
+  `ContractDataView` über den Dialog, keine neue Route/Datei.
+- **PWA-Icons:** Platzhalter „N" durch echtes NuVio-Logo (`public/assets/Icon.webp`) ersetzt —
+  `icon-192/512.png`, `apple-touch-icon.png` (voll) und `maskable-512.png` (mit Safe-Zone-Padding).
+- **In-App-Logo:** Platzhalter-„N" durch echtes Logo ersetzt — LoginPage-Header und Sidebar-Header
+  zeigen jetzt `Icon.webp`.
+- **Gestylte Lösch-Abfrage:** wiederverwendbare `ConfirmDialog`-Komponente + `useConfirm()`-Hook
+  (Provider im AppShell, `src/components/ConfirmDialog.tsx`) statt nativem `window.confirm()`.
+  Alle 12 Aufrufrufstellen umgestellt (Kunden, Ressourcen, Preislisten/-positionen/-spalten,
+  Mitarbeiter, Settings-Felder, Standorte, Dateien, Buchungs-Storno). Esc/Enter + Fokus wie nativ,
+  destruktive (rote) Variante als Standard.
+
 ## Preisgruppen & Fahrzeug-Stammdaten (PLT) — abgeschlossen 27.06.2026
 
 - **16 Anhänger** auf gültige `Anhaenger_*`-Gruppen gesetzt (zuletzt: Plane Goch/Uedem → Planegross,

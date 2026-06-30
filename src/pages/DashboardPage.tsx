@@ -91,12 +91,12 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 /** Liste mit Buchungen, deren Abhol- ODER Rückgabezeit fokussiert wird. */
-function MovementRow({ booking, resources, mode }: { booking: Booking; resources: Resource[]; mode: 'pickup' | 'return' }) {
+function MovementRow({ booking, resources, mode, onSelect }: { booking: Booking; resources: Resource[]; mode: 'pickup' | 'return'; onSelect?: (b: Booking) => void }) {
   const resource = resources.find((r) => r.id === booking.resource_id)
   const time = mode === 'pickup' ? booking.starts_at : booking.ends_at
   const overdue = mode === 'return' && new Date(booking.ends_at) < new Date()
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+    <RowWrapper booking={booking} onSelect={onSelect}>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
         <p className="text-xs text-muted-foreground truncate">{resource?.name ?? '—'}</p>
@@ -107,7 +107,28 @@ function MovementRow({ booking, resources, mode }: { booking: Booking; resources
       )}>
         {formatTime(time)}{overdue ? ' · überfällig' : ''}
       </span>
-    </div>
+    </RowWrapper>
+  )
+}
+
+/**
+ * Klickbarer Zeilen-Container für Buchungen. Mit `onSelect` öffnet ein Klick die
+ * Buchung (BookingDialog → enthält Vertragsdaten), sonst reine Anzeige. Spart die
+ * Navigation Dashboard → Buchungen → Vertrag.
+ */
+function RowWrapper({ booking, onSelect, children }: { booking: Booking; onSelect?: (b: Booking) => void; children: React.ReactNode }) {
+  const base = 'flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 transition-colors'
+  if (!onSelect) {
+    return <div className={cn(base, 'hover:bg-muted/30')}>{children}</div>
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(booking)}
+      className={cn(base, 'w-full text-left hover:bg-muted/50 cursor-pointer')}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -232,7 +253,7 @@ function ReturnedRow({ booking, resources }: { booking: Booking; resources: Reso
   )
 }
 
-function BookingRow({ booking, resources }: { booking: Booking; resources: Resource[] }) {
+function BookingRow({ booking, resources, onSelect }: { booking: Booking; resources: Resource[]; onSelect?: (b: Booking) => void }) {
   const resource = resources.find((r) => r.id === booking.resource_id)
   const now = new Date()
   const starts = new Date(booking.starts_at)
@@ -242,7 +263,7 @@ function BookingRow({ booking, resources }: { booking: Booking; resources: Resou
   const isEndingToday = startOfDay(ends) <= now && now <= endOfDay(ends)
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+    <RowWrapper booking={booking} onSelect={onSelect}>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
         <p className="text-xs text-muted-foreground truncate">
@@ -260,7 +281,7 @@ function BookingRow({ booking, resources }: { booking: Booking; resources: Resou
           {isActive ? 'Aktiv' : isStartingToday ? 'Startet heute' : isEndingToday ? 'Endet heute' : '—'}
         </span>
       </div>
-    </div>
+    </RowWrapper>
   )
 }
 
@@ -397,6 +418,7 @@ export function DashboardPage() {
   const { user, profile } = useAuth()
   const { activeCompany, activeMembership, activeRole } = useWorkspace()
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<Booking | undefined>()
   const [bookingPeriod, setBookingPeriod] = useState<'today' | 'week' | 'month'>('today')
 
   // Rollen — Umsatzdaten NUR für Admin. Owner zählt als Admin.
@@ -534,6 +556,14 @@ export function DashboardPage() {
 
   const periodCount = bookingPeriod === 'today' ? todayBookings.length : bookingPeriod === 'week' ? weekBookings.length : monthBookings.length
 
+  // Klick auf eine Buchungszeile öffnet die Buchung (inkl. Vertragsdaten) — nur
+  // für Rollen mit Bearbeitungsrecht. Mitarbeiter sehen die Zeilen als Anzeige.
+  const openBooking = canManage ? (b: Booking) => { setSelectedBooking(b); setBookingDialogOpen(true) } : undefined
+  function closeBookingDialog() {
+    setBookingDialogOpen(false)
+    setSelectedBooking(undefined)
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -546,7 +576,7 @@ export function DashboardPage() {
         </div>
         {canManage && (
           <button
-            onClick={() => setBookingDialogOpen(true)}
+            onClick={() => { setSelectedBooking(undefined); setBookingDialogOpen(true) }}
             className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="w-4 h-4" />
@@ -614,24 +644,24 @@ export function DashboardPage() {
         {/* Mitarbeiter: eigene Termine zuerst */}
         {isStaff && (
           <ListCard title="Meine Termine heute" badge={myToday.length} empty="Keine eigenen Termine heute.">
-            {myToday.map((b) => <BookingRow key={b.id} booking={b} resources={resources} />)}
+            {myToday.map((b) => <BookingRow key={b.id} booking={b} resources={resources} onSelect={openBooking} />)}
           </ListCard>
         )}
 
         {/* Abholungen heute — alle Rollen */}
         <ListCard title="Abholungen heute" badge={todayPickups.length} empty="Keine Abholungen heute.">
-          {todayPickups.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="pickup" />)}
+          {todayPickups.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="pickup" onSelect={openBooking} />)}
         </ListCard>
 
         {/* Rückgaben heute — alle Rollen */}
         <ListCard title="Rückgaben heute" badge={todayReturns.length} empty="Keine Rückgaben heute.">
-          {todayReturns.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="return" />)}
+          {todayReturns.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="return" onSelect={openBooking} />)}
         </ListCard>
 
         {/* Aktive Vermietungen — Admin + Bearbeiter */}
         {canManage && (
           <ListCard title="Aktive Vermietungen" badge={activeRentals.length} empty="Keine aktiven Vermietungen.">
-            {activeRentals.map((b) => <BookingRow key={b.id} booking={b} resources={resources} />)}
+            {activeRentals.map((b) => <BookingRow key={b.id} booking={b} resources={resources} onSelect={openBooking} />)}
           </ListCard>
         )}
 
@@ -707,7 +737,7 @@ export function DashboardPage() {
         )}
       </div>
 
-      {canManage && <BookingDialog open={bookingDialogOpen} onClose={() => setBookingDialogOpen(false)} />}
+      {canManage && <BookingDialog open={bookingDialogOpen} booking={selectedBooking} onClose={closeBookingDialog} />}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, CircleCheck, CircleOff, ChevronRight, Settings2, Tag } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useCompanySettings, useCan } from '@/features/workspace'
 import {
   usePriceLists,
@@ -38,6 +39,7 @@ function ItemsPanel({
   priceList: PriceList
   canManage: boolean
 }) {
+  const confirm = useConfirm()
   const { data: items = [], isLoading } = usePriceListItems(priceList.id)
   const { data: definitions = [] } = usePriceListItemFieldDefinitions(priceList.id)
   const settings = useCompanySettings()
@@ -75,7 +77,8 @@ function ItemsPanel({
   }
 
   async function handleDelete(item: PriceListItem) {
-    if (!confirm(`Position "${item.name}" wirklich löschen?`)) return
+    const ok = await confirm({ message: `Position „${item.name}" wirklich löschen?` })
+    if (!ok) return
     await deleteItem.mutateAsync(item.id)
   }
 
@@ -185,6 +188,7 @@ function ItemsPanel({
 
 export function PricingPage() {
   const can = useCan()
+  const confirm = useConfirm()
   const canManage = can('pricing', 'update')
 
   const { data: priceLists = [], isLoading } = usePriceLists()
@@ -221,7 +225,8 @@ export function PricingPage() {
   }
 
   async function handleDelete(pl: PriceList) {
-    if (!confirm(`Preisliste "${pl.name}" wirklich löschen?`)) return
+    const ok = await confirm({ message: `Preisliste „${pl.name}" wirklich löschen?` })
+    if (!ok) return
     if (expandedId === pl.id) setExpandedId(null)
     await deletePriceList.mutateAsync(pl.id)
   }
