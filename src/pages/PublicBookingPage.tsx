@@ -243,6 +243,17 @@ function BookingFlow({
       : null
   const rangeValid = !!from && !!to && !rangeError
 
+  // Hinweis, solange der Zeitraum noch nicht vollständig gewählt ist — sonst
+  // steht der Nutzer ohne Rückmeldung da und weiß nicht, warum nichts erscheint.
+  const rangeHint =
+    !from && !to
+      ? 'Bitte Start- und Endzeitpunkt wählen, um verfügbare Fahrzeuge zu sehen.'
+      : !to
+        ? 'Bitte noch den Endzeitpunkt („Bis") wählen.'
+        : !from
+          ? 'Bitte noch den Startzeitpunkt („Von") wählen.'
+          : null
+
   return (
     <div className="mt-5 space-y-5">
       <div className="space-y-3">
@@ -264,6 +275,11 @@ function BookingFlow({
           />
         </div>
         {rangeError && <p className="text-sm text-red-600">{rangeError}</p>}
+        {!rangeError && rangeHint && (
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 ring-1 ring-slate-100">
+            {rangeHint}
+          </p>
+        )}
       </div>
 
       {rangeValid && (
