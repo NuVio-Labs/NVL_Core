@@ -286,7 +286,11 @@ export function BookingDialog({ open, booking, initialDate, confirmOnSave, onClo
   // KEIN unscharfes Teil-Token-Matching, das die falsche Gruppe treffen kann.
   const { data: priceListItems = [] } = usePriceListItems(watchedPriceListId || undefined)
   const resourceMeta = (selectedResource?.metadata ?? {}) as Record<string, unknown>
-  const preisgruppe = resourceMeta[preisgruppeFeld] as string | undefined
+  // Fallback auf 'preis_gruppe' wie in resourceCategory/readPreisgruppe: der
+  // konfigurierte Feldname (booking_field_preisgruppe) kann vom tatsächlichen
+  // metadata-Schlüssel abweichen ('preisgruppe' vs. 'preis_gruppe'). Ohne den
+  // Fallback bliebe die Preisgruppe undefined → kein Preis trotz passender Liste.
+  const preisgruppe = (resourceMeta[preisgruppeFeld] ?? resourceMeta.preis_gruppe) as string | undefined
   const matchingItem = matchPriceClassItem(priceListItems, preisgruppe)
 
   // Nur die Dauern anbieten, für die das gewählte Fahrzeug (= matchingItem)

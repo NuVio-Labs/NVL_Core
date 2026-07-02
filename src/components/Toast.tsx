@@ -48,7 +48,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[70] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
+      {/* Mittig oben, prägnant — überlagert den Inhalt bewusst mittig-zentriert. */}
+      <div className="fixed inset-x-0 top-6 z-[80] flex flex-col items-center gap-3 px-4 pointer-events-none">
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onDismiss={() => dismiss(t.id)} />
         ))}
@@ -61,10 +62,10 @@ export function useToast() {
   return useContext(ToastContext)
 }
 
-const VARIANT_STYLE: Record<ToastVariant, { icon: React.ElementType; iconClass: string; ring: string }> = {
-  success: { icon: CheckCircle2, iconClass: 'text-green-600', ring: 'ring-green-100' },
-  info: { icon: Info, iconClass: 'text-blue-600', ring: 'ring-blue-100' },
-  warning: { icon: AlertTriangle, iconClass: 'text-amber-600', ring: 'ring-amber-100' },
+const VARIANT_STYLE: Record<ToastVariant, { icon: React.ElementType; iconClass: string; border: string; iconBg: string }> = {
+  success: { icon: CheckCircle2, iconClass: 'text-green-600', border: 'border-green-200', iconBg: 'bg-green-50' },
+  info: { icon: Info, iconClass: 'text-blue-600', border: 'border-blue-200', iconBg: 'bg-blue-50' },
+  warning: { icon: AlertTriangle, iconClass: 'text-amber-600', border: 'border-amber-200', iconBg: 'bg-amber-50' },
 }
 
 function ToastItem({ toast, onDismiss }: { toast: ActiveToast; onDismiss: () => void }) {
@@ -76,23 +77,25 @@ function ToastItem({ toast, onDismiss }: { toast: ActiveToast; onDismiss: () => 
     return () => clearTimeout(timer)
   }, [durationMs, onDismiss])
 
-  const { icon: Icon, iconClass, ring } = VARIANT_STYLE[variant]
+  const { icon: Icon, iconClass, border, iconBg } = VARIANT_STYLE[variant]
 
   return (
     <div
       role="status"
       className={cn(
-        'pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-background px-4 py-3 shadow-lg ring-1',
-        ring,
+        'pointer-events-auto flex w-full max-w-md items-start gap-4 rounded-2xl border-2 bg-background px-5 py-4 shadow-2xl',
+        border,
       )}
     >
-      <Icon className={cn('w-5 h-5 shrink-0 mt-0.5', iconClass)} />
-      <div className="min-w-0 flex-1">
-        {title && <p className="text-sm font-semibold text-foreground">{title}</p>}
-        <p className="text-sm text-muted-foreground">{message}</p>
+      <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', iconBg)}>
+        <Icon className={cn('w-6 h-6', iconClass)} />
       </div>
-      <button onClick={onDismiss} className="p-0.5 rounded hover:bg-muted transition-colors shrink-0" aria-label="Schließen">
-        <X className="w-4 h-4 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        {title && <p className="text-base font-bold text-foreground">{title}</p>}
+        <p className="text-sm text-muted-foreground mt-0.5">{message}</p>
+      </div>
+      <button onClick={onDismiss} className="p-1 rounded-lg hover:bg-muted transition-colors shrink-0" aria-label="Schließen">
+        <X className="w-5 h-5 text-muted-foreground" />
       </button>
     </div>
   )
