@@ -31,6 +31,15 @@ export function useBookingsByMonth(year: number, month: number) {
   })
 }
 
+export function usePendingOnlineRequests() {
+  const { activeCompanyId } = useWorkspace()
+  return useQuery({
+    queryKey: ['bookings', activeCompanyId, 'pending-online'],
+    queryFn: () => bookingService.listPendingOnline(activeCompanyId!),
+    enabled: !!activeCompanyId,
+  })
+}
+
 export function useCreateBooking() {
   const queryClient = useQueryClient()
   const { activeCompanyId } = useWorkspace()

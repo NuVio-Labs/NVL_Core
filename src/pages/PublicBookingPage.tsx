@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 import {
+  useCreateBookingRequest,
   usePublicCompany,
   usePublicAvailableVehicles,
   usePublicPriceItems,
@@ -12,9 +13,9 @@ import {
 import { richtpreis24h } from '@/features/public-booking/lib/richtpreis'
 
 // Öffentliche Endkunden-Buchungsseite (kein Login, eigenes schlankes Layout —
-// KEIN AppShell/Sidebar/Header). Etappe 4: Zeitraumwahl (mit 72h-Vorlauf aus
-// companies.settings) → im Fenster verfügbare Fahrzeuge via RPC + Richtpreis.
-// Kontaktformular + Anfrage folgen in Etappe 5.
+// KEIN AppShell/Sidebar/Header). Flow: Station → Zeitraum (72h-Vorlauf) →
+// verfügbares Fahrzeug wählen → Kontaktformular (+ Honeypot) → Anfrage (pending)
+// via RPC → Bestätigung. Serverseitige Validierung ist verbindlich.
 export function PublicBookingPage() {
   const { companySlug } = useParams<{ companySlug: string }>()
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
@@ -288,16 +289,24 @@ function DateTimeField({
   min: string
   onChange: (v: string) => void
 }) {
+  // Das native datetime-local rendert sein Format nach Browser-Locale (bei
+  // US-Locale mm/dd/yyyy). Da wir das nicht erzwingen können, zeigen wir den
+  // gewählten Wert zusätzlich in deutschem Klartext an — eindeutig für den Nutzer.
+  const preview = value ? formatDateLong(new Date(value)) : null
   return (
     <label className="block space-y-1.5">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <input
         type="datetime-local"
+        lang="de-DE"
         value={value}
         min={min}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-slate-900/20 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
       />
+      <span className="block min-h-[1rem] text-xs text-slate-500">
+        {preview ?? 'TT.MM.JJJJ, HH:MM'}
+      </span>
     </label>
   )
 }
@@ -315,6 +324,8 @@ function AvailableVehicles({
 }) {
   const vehiclesQuery = usePublicAvailableVehicles(companySlug, station.slug, from, to)
   const priceItemsQuery = usePublicPriceItems(companySlug)
+
+  const [selected, setSelected] = useState<PublicVehicle | null>(null)
 
   const vehicles = vehiclesQuery.data ?? []
   const priceItems = priceItemsQuery.data ?? []
@@ -341,12 +352,31 @@ function AvailableVehicles({
     )
   }
 
+  if (selected) {
+    return (
+      <RequestForm
+        companySlug={companySlug}
+        stationSlug={station.slug}
+        vehicle={selected}
+        from={from}
+        to={to}
+        price={richtpreis24h(selected, priceItems)}
+        onBack={() => setSelected(null)}
+      />
+    )
+  }
+
   return (
     <div>
       <p className="mb-3 text-sm text-slate-500">Verfügbare Fahrzeuge im gewählten Zeitraum:</p>
       <ul className="space-y-2">
         {vehicles.map((v) => (
-          <VehicleRow key={v.id} vehicle={v} priceItems={priceItems} />
+          <VehicleRow
+            key={v.id}
+            vehicle={v}
+            priceItems={priceItems}
+            onSelect={() => setSelected(v)}
+          />
         ))}
       </ul>
       <p className="mt-4 text-xs text-slate-400">
@@ -359,9 +389,11 @@ function AvailableVehicles({
 function VehicleRow({
   vehicle,
   priceItems,
+  onSelect,
 }: {
   vehicle: PublicVehicle
   priceItems: PublicPriceItem[]
+  onSelect: () => void
 }) {
   const price = richtpreis24h(vehicle, priceItems)
   const details = [
@@ -370,20 +402,187 @@ function VehicleRow({
   ].filter(Boolean)
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white/70 px-4 py-3 shadow-sm">
-      <span className="min-w-0">
-        <span className="block text-sm font-medium text-slate-900">{vehicle.name}</span>
-        {details.length > 0 && (
-          <span className="block text-xs text-slate-500">{details.join(' · ')}</span>
-        )}
-      </span>
-      {price !== null && (
-        <span className="shrink-0 text-right text-sm font-medium text-slate-900">
-          ab {formatEuro(price)}
-          <span className="block text-xs font-normal text-slate-400">/ 24 h</span>
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white/70 px-4 py-3 text-left shadow-sm transition hover:border-slate-900/20 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-slate-900">{vehicle.name}</span>
+          {details.length > 0 && (
+            <span className="block text-xs text-slate-500">{details.join(' · ')}</span>
+          )}
         </span>
-      )}
+        {price !== null && (
+          <span className="shrink-0 text-right text-sm font-medium text-slate-900">
+            ab {formatEuro(price)}
+            <span className="block text-xs font-normal text-slate-400">/ 24 h</span>
+          </span>
+        )}
+      </button>
     </li>
+  )
+}
+
+// --- Kontaktformular + Anfrage (Etappe 5) ------------------------------------
+
+const REASON_TEXT: Record<string, string> = {
+  missing_fields: 'Bitte füllen Sie Vor- und Nachname sowie Telefon aus.',
+  invalid_range: 'Der gewählte Zeitraum ist ungültig.',
+  lead_time: 'Bitte planen Sie etwas mehr Vorlauf ein.',
+  station_disabled: 'Die Online-Buchung für diese Station ist derzeit nicht verfügbar.',
+  invalid_vehicle: 'Das Fahrzeug ist an dieser Station nicht buchbar.',
+  not_available: 'Dieses Fahrzeug wurde im gewählten Zeitraum inzwischen vergeben. Bitte wählen Sie ein anderes.',
+  unknown_company: 'Anbieter nicht gefunden.',
+}
+
+function RequestForm({
+  companySlug,
+  stationSlug,
+  vehicle,
+  from,
+  to,
+  price,
+  onBack,
+}: {
+  companySlug: string
+  stationSlug: string
+  vehicle: PublicVehicle
+  from: Date
+  to: Date
+  price: number | null
+  onBack: () => void
+}) {
+  const createRequest = useCreateBookingRequest()
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [notes, setNotes] = useState('')
+  const [honeypot, setHoneypot] = useState('') // versteckt — muss leer bleiben
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    try {
+      const result = await createRequest.mutateAsync({
+        companySlug, stationSlug, resourceId: vehicle.id,
+        from, to, firstName, lastName, phone,
+        email: email || undefined, notes: notes || undefined, honeypot,
+      })
+      if (result.status === 'ok') {
+        setDone(true)
+      } else {
+        setError(REASON_TEXT[result.reason] ?? 'Die Anfrage konnte nicht gesendet werden.')
+      }
+    } catch {
+      setError('Die Anfrage konnte nicht gesendet werden. Bitte später erneut versuchen.')
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="space-y-3 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
+          ✓
+        </div>
+        <h3 className="text-base font-semibold text-slate-900">Anfrage eingegangen</h3>
+        <p className="text-sm text-slate-500">
+          Vielen Dank! Ihre unverbindliche Anfrage für den <strong>{vehicle.name}</strong> ist bei
+          uns eingegangen. Die Station meldet sich zur Bestätigung bei Ihnen.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="text-sm text-slate-500 underline-offset-4 transition hover:text-slate-900 hover:underline"
+      >
+        ← Anderes Fahrzeug
+      </button>
+
+      <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm ring-1 ring-slate-100">
+        <p className="font-medium text-slate-900">{vehicle.name}</p>
+        <p className="text-slate-500">
+          {formatDateTime(from)} – {formatDateTime(to)}
+          {price !== null && <> · Richtpreis ab {formatEuro(price)}/24 h</>}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextField label="Vorname" value={firstName} onChange={setFirstName} required autoComplete="given-name" />
+        <TextField label="Nachname" value={lastName} onChange={setLastName} required autoComplete="family-name" />
+      </div>
+      <TextField label="Telefon" value={phone} onChange={setPhone} required type="tel" autoComplete="tel" />
+      <TextField label="E-Mail (optional)" value={email} onChange={setEmail} type="email" autoComplete="email" />
+      <TextField label="Nachricht (optional)" value={notes} onChange={setNotes} />
+
+      {/* Honeypot: für Menschen unsichtbar, Bots füllen es aus → Anfrage wird verworfen. */}
+      <div aria-hidden className="absolute left-[-9999px] h-0 w-0 overflow-hidden" tabIndex={-1}>
+        <label>
+          Bitte nicht ausfüllen
+          <input
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+          />
+        </label>
+      </div>
+
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-red-100">{error}</p>
+      )}
+
+      <button
+        type="submit"
+        disabled={createRequest.isPending}
+        className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 active:scale-[0.99] disabled:opacity-50"
+      >
+        {createRequest.isPending ? 'Wird gesendet…' : 'Unverbindlich anfragen'}
+      </button>
+      <p className="text-center text-xs text-slate-400">
+        Ihre Anfrage ist unverbindlich. Erst die Bestätigung durch die Station macht die Buchung fest.
+      </p>
+    </form>
+  )
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  required,
+  type = 'text',
+  autoComplete,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  required?: boolean
+  type?: string
+  autoComplete?: string
+}) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <input
+        type={type}
+        required={required}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-slate-900/20 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+      />
+    </label>
   )
 }
 
@@ -399,4 +598,17 @@ function toLocalInput(d: Date): string {
 
 function formatDateTime(d: Date): string {
   return d.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+/** Deutsches Langformat mit Wochentag, z.B. "Fr., 10. Juli 2026, 18:00 Uhr". */
+function formatDateLong(d: Date): string {
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleString('de-DE', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }) + ' Uhr'
 }

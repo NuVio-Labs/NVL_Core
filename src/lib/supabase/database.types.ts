@@ -1129,6 +1129,22 @@ export type Database = {
           sitze: number | null
         }[]
       }
+      create_public_booking_request: {
+        Args: {
+          p_company_slug: string
+          p_station_slug: string
+          p_resource_id: string
+          p_from: string
+          p_to: string
+          p_first_name: string
+          p_last_name: string
+          p_phone: string
+          p_email?: string | null
+          p_notes?: string | null
+          p_honeypot?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       membership_role:

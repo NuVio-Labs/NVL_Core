@@ -43,3 +43,24 @@ export interface PublicPriceItem {
   /** 24h-Tarif als Rohstring (z.B. "55" oder "50,42"). */
   tarif24std: string | null
 }
+
+// Eingabe einer öffentlichen Buchungsanfrage (Kontaktformular).
+export interface PublicBookingRequest {
+  companySlug: string
+  stationSlug: string
+  resourceId: string
+  from: Date
+  to: Date
+  firstName: string
+  lastName: string
+  phone: string
+  email?: string
+  notes?: string
+  /** Honeypot — muss leer bleiben (Spam-Schutz). */
+  honeypot?: string
+}
+
+// Ergebnis der Anfrage-RPC.
+export type PublicBookingResult =
+  | { status: 'ok'; bookingId?: string }
+  | { status: 'error'; reason: string }

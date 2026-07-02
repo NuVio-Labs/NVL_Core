@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { publicBookingService } from '../service/publicBookingService'
+import type { PublicBookingRequest } from '../types'
 
 // React-Query-Hooks für die öffentliche Buchung. Keine Workspace-Bindung
 // (Endkunde hat kein Login) — Cache-Key läuft über den companySlug.
@@ -44,6 +45,12 @@ export function usePublicAvailableVehicles(
     queryFn: () =>
       publicBookingService.listAvailableVehicles(companySlug!, stationSlug!, from!, to!),
     enabled: !!companySlug && !!stationSlug && !!from && !!to,
+  })
+}
+
+export function useCreateBookingRequest() {
+  return useMutation({
+    mutationFn: (req: PublicBookingRequest) => publicBookingService.createRequest(req),
   })
 }
 

@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type {
+  PublicBookingRequest,
+  PublicBookingResult,
   PublicCompany,
   PublicPriceItem,
   PublicStation,
@@ -94,5 +96,23 @@ export const publicBookingService = {
         itemName: r.item_name as string,
         tarif24std: r.tarif_24std,
       }))
+  },
+
+  async createRequest(req: PublicBookingRequest): Promise<PublicBookingResult> {
+    const { data, error } = await supabase.rpc('create_public_booking_request', {
+      p_company_slug: req.companySlug,
+      p_station_slug: req.stationSlug,
+      p_resource_id: req.resourceId,
+      p_from: req.from.toISOString(),
+      p_to: req.to.toISOString(),
+      p_first_name: req.firstName,
+      p_last_name: req.lastName,
+      p_phone: req.phone,
+      p_email: req.email ?? null,
+      p_notes: req.notes ?? null,
+      p_honeypot: req.honeypot ?? null,
+    })
+    if (error) throw error
+    return data as unknown as PublicBookingResult
   },
 }
