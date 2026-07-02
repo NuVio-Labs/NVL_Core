@@ -38,6 +38,12 @@ const router = createBrowserRouter([
         path: 'datenschutz',
         lazy: lazyWithReload(() => import('@/pages/DatenschutzPage'), (m) => m.DatenschutzPage),
       },
+      // Öffentliche Endkunden-Buchung pro Firma (kein Login). Bewusst VOR
+      // ProtectedRoute, damit der Session-Guard sie nicht abfängt.
+      {
+        path: 'buchen/:companySlug',
+        lazy: lazyWithReload(() => import('@/pages/PublicBookingPage'), (m) => m.PublicBookingPage),
+      },
       {
         element: <ProtectedRoute />,
         children: [

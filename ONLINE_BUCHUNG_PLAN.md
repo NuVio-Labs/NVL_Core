@@ -4,6 +4,12 @@
 > Alle Entscheidungen getroffen, DB-Realität verifiziert. In FRISCHER Session bauen (/clear).
 > Package-Manager: **pnpm** (nicht npm!). Verifizieren mit: pnpm exec tsc --noEmit, pnpm run test:run, pnpm build.
 
+> **Update 02.07.2026 (Axel bestätigt):** Formular = **schlanke Anfrage**, NICHT das volle
+> Mitarbeiter-Formular replizieren (kein km-Paket, keine verbindliche Endpreis-Zusage an Gäste;
+> Richtpreis „ab X €" nur informativ). Freigabe = **eigene „Online-Anfragen"-Liste** im Dashboard
+> mit Bestätigen/Ablehnen + Konfliktprüfung. Benachrichtigung = **In-App zuerst** (Badge/Zähler),
+> E-Mail (IONOS-SMTP) erst als späterer Schritt. Diese drei Beschlüsse sind final.
+
 ---
 
 ## ENTSCHEIDUNGEN (alle final, von Axel)
@@ -19,6 +25,8 @@
 | URL-Struktur | **Stationswähler auf einer Seite**: `/buchen/plt-autovermietung` → Station wählen → Auto. |
 | Spam-Schutz | Erstmal **Honeypot + Rate-Limit** (kein externes Captcha). Turnstile später nachrüstbar. |
 | Telefon | **Pro Station eigene Nummer** → locations braucht neues Feld `phone`. |
+| Vorlauf | **72h Mindestvorlauf** (`starts_at >= now() + lead`). Konfigurierbar pro Mandant: `companies.settings.online_booking_lead_hours` (Default 72). Erzwungen im Datepicker UND serverseitig in der RPC. |
+| Richtpreis | Im **Frontend** via vorhandene `pricing.ts` berechnet (keine doppelte Preislogik in SQL). Text: **„ab X € / 24 h"**. |
 
 ---
 
@@ -51,26 +59,36 @@ Kein Umbau am Guard nötig. Eigenes schlankes Public-Layout (KEIN AppShell/Sideb
 1. **bookings.status erweitern** um 'pending':
    `alter table bookings drop constraint <name>; add check (status in ('confirmed','cancelled','completed','pending'));`
    (Constraint-Name vorher prüfen.) Default bleibt 'confirmed'. Online-Buchung schreibt 'pending'.
-2. **locations.slug + locations.phone** ergänzen (text, nullable). Slugs für die 8 Stationen befüllen
-   (kranenburg, kalkar, weeze, goch, kevelaer, alpen, uedem, xanten), phone pro Station.
+2. **locations.slug + locations.phone + online_booking_enabled** ergänzen. Slugs für die 8 Stationen
+   befüllen (kranenburg, kalkar, weeze, goch, kevelaer, alpen, uedem, xanten), phone pro Station.
+   `online_booking_enabled boolean default false` — **PILOT: nur `kranenburg` = true.**
+   Weitere Stationen später per einfachem UPDATE freischalten (kein Deploy). Bereits in
+   `_GEPLANT_online_buchung_02_*.sql` mitgeführt.
 3. **Öffentliche Lese-View(s)** (SECURITY DEFINER / RLS) — nur freigegebene Felder:
-   - `public_stations(company_slug)` → Stationen (name, slug, address, phone) der Firma.
+   - `public_stations(company_slug)` → Stationen (name, slug, address, phone, **online_booking_enabled**) der Firma.
    - `public_vehicles(company_slug, station_slug)` → Fahrzeuge der Station (name, typ aus preis_gruppe,
      Richtpreis 24h, AHK, sitze) — OHNE kennzeichen, OHNE interne Felder.
 4. **RPC `create_public_booking_request(...)`** (SECURITY DEFINER): validiert serverseitig
-   (Fahrzeug gehört zur Station? Zeitraum frei? Honeypot leer? Pflichtfelder?), schreibt booking
-   mit status='pending' + metadata.source='online' + Kontaktdaten. Rate-Limit pro IP.
-   NIEMALS direkter anon-INSERT auf bookings.
+   (Station hat `online_booking_enabled = true`? Fahrzeug gehört zur Station? Zeitraum frei?
+   Honeypot leer? Pflichtfelder?), schreibt booking mit status='pending' + metadata.source='online'
+   + Kontaktdaten. Rate-Limit pro IP. NIEMALS direkter anon-INSERT auf bookings.
+   **Pilot-Regel serverseitig erzwingen** — nicht nur im UI: RPC lehnt Anfragen für Stationen
+   mit `online_booking_enabled = false` ab (sonst umgehbar).
 
 ## FRONTEND (neue Dateien)
 
 - `src/pages/PublicBookingPage.tsx` — öffentliche Seite, eigenes Layout. Flow:
   1. Station wählen (Dropdown/Liste aus public_stations).
-  2. Zeitraum wählen (von/bis).
-  3. Verfügbare Autos der Station im Zeitraum (public_vehicles + Verfügbarkeit) mit Richtpreis.
+  2. **PILOT-Weiche direkt nach Stationswahl:**
+     - `online_booking_enabled === false` (alle außer Kranenburg) → **Beta-Hinweis**
+       („Online-Buchung für diese Station ist in Kürze verfügbar — wir arbeiten daran")
+       + **Anruf-Button** `tel:<station.phone>` („Station anrufen"). KEIN Formular.
+     - `online_booking_enabled === true` (Kranenburg) → weiter mit Schritt 3.
+  3. Zeitraum wählen (von/bis).
+  4. Verfügbare Autos der Station im Zeitraum (public_vehicles + Verfügbarkeit) mit Richtpreis.
      Auto nicht buchbar/nicht an Station → „Telefonisch buchen: <station.phone>".
-  4. Kontaktdaten (Name, Tel, E-Mail) + Honeypot-Feld (versteckt).
-  5. Absenden → RPC → Bestätigungsseite „Anfrage eingegangen, PLT meldet sich".
+  5. Kontaktdaten (Name, Tel, E-Mail) + Honeypot-Feld (versteckt).
+  6. Absenden → RPC → Bestätigungsseite „Anfrage eingegangen, PLT meldet sich".
 - `src/features/public-booking/` — service (RPC-Calls), hooks, types. Öffentlich = eigener
   Supabase-Client-Pfad ok (anon key), aber nur die Public-RPCs/Views nutzen.
 - Preis-Anzeige nutzt vorhandene pricing.ts-Logik (oder die View liefert den Richtpreis fertig).
@@ -85,11 +103,13 @@ Kein Umbau am Guard nötig. Eigenes schlankes Public-Layout (KEIN AppShell/Sideb
 
 ## BAU-REIHENFOLGE (Etappen)
 
-1. Migrationen 1+2 (status 'pending', locations.slug+phone) via SQL-Editor. Slugs/Phones befüllen.
+1. Migrationen 1+2 (status 'pending', locations.slug+phone+online_booking_enabled) via SQL-Editor.
+   Slugs/Phones befüllen; NUR kranenburg = online_booking_enabled true.
 2. Public-Route + leeres Public-Layout + Stationswähler (statisch).
-3. Views 3 + public_stations/public_vehicles → echte Stationen + Autos + Richtpreis anzeigen.
-4. Verfügbarkeits-Filter + „telefonisch buchen"-Fallback.
-5. RPC 4 + Kontaktformular + Honeypot + Bestätigungsseite.
+3. Views 3 (inkl. online_booking_enabled) + public_stations/public_vehicles → echte Stationen +
+   Autos + Richtpreis. **Pilot-Weiche:** disabled-Station → Beta-Hinweis + tel:-Anruf-Button.
+4. Verfügbarkeits-Filter + „telefonisch buchen"-Fallback (nur Kranenburg-Pfad).
+5. RPC 4 (mit serverseitiger Pilot-Prüfung) + Kontaktformular + Honeypot + Bestätigungsseite.
 6. Dashboard-Liste „Online-Anfragen" + Bestätigen/Ablehnen.
 7. (optional) E-Mail-Benachrichtigungen.
 
