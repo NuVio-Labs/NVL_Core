@@ -13,6 +13,8 @@ import { useCreateBooking, useUpdateBooking, useCancelBooking, useBookingsForRan
 import { bookingService } from '../service/bookingService'
 import { ContractDataView } from './ContractDataView'
 import { resourceCategory, matchPriceList, matchPriceClassItem, resolveTariff } from '../lib/pricing'
+import { useConfirm } from '@/components/ConfirmDialog'
+import { useToast } from '@/components/Toast'
 import { useCompanySettings, useWorkspace } from '@/features/workspace'
 import { useCustomers, useCreateCustomer } from '@/features/customers'
 import type { Booking, BookingFieldDefinition, BookingWithCreator } from '../types'
@@ -78,6 +80,12 @@ interface Props {
   open: boolean
   booking?: Booking | BookingWithCreator
   initialDate?: Date
+  /**
+   * Beim Speichern zusätzlich status='confirmed' setzen. Für Online-Anfragen
+   * (status='pending'): erst das Speichern bestätigt die Buchung verbindlich —
+   * ein Abbruch lässt sie 'pending' (bleibt in der Anfragen-Liste).
+   */
+  confirmOnSave?: boolean
   onClose: () => void
 }
 
@@ -85,7 +93,7 @@ function formatPrice(v: number) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(v)
 }
 
-export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
+export function BookingDialog({ open, booking, initialDate, confirmOnSave, onClose }: Props) {
   const { data: resources = [] } = useResources()
   const { data: priceLists = [] } = usePriceLists()
   const { data: durationMappings = [] } = useDurationTariffMappings()
@@ -106,6 +114,8 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
   const [savedAsCustomer, setSavedAsCustomer] = useState(false)
   const [showContractData, setShowContractData] = useState(false)
   const createCustomer = useCreateCustomer()
+  const confirm = useConfirm()
+  const toast = useToast()
 
   const metaSchema = buildMetaSchema(fieldDefinitions)
   const schema = baseSchema
@@ -380,7 +390,20 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
     const me = activeMembership?.profile_id ?? null
     if (booking) {
       // Bearbeiten: nur updated_by setzen — created_by (Ersteller) bleibt unberührt.
-      await updateBooking.mutateAsync({ id: booking.id, payload: { ...payload, updated_by: me } })
+      // Bei einer bestätigten Online-Anfrage zusätzlich status='confirmed' — erst
+      // das Speichern macht die pending-Anfrage verbindlich.
+      const statusPatch = confirmOnSave ? { status: 'confirmed' as const } : {}
+      await updateBooking.mutateAsync({ id: booking.id, payload: { ...payload, ...statusPatch, updated_by: me } })
+      // Online-Anfrage bestätigt: Kunde wird NICHT automatisch benachrichtigt —
+      // die Station muss ihn selbst kontaktieren (E-Mail-Versand ist späterer Schritt).
+      if (confirmOnSave) {
+        toast({
+          variant: 'warning',
+          title: 'Buchung bestätigt',
+          message: `Bitte ${payload.first_name} ${payload.last_name} noch telefonisch bestätigen — der Kunde wird nicht automatisch benachrichtigt.`,
+          durationMs: 8000,
+        })
+      }
     } else {
       // Neu: created_by = Ersteller.
       await createBooking.mutateAsync({ ...payload, created_by: me })
@@ -391,7 +414,12 @@ export function BookingDialog({ open, booking, initialDate, onClose }: Props) {
 
   async function handleCancel() {
     if (!booking) return
-    if (!confirm('Buchung wirklich stornieren?')) return
+    const ok = await confirm({
+      title: 'Buchung stornieren',
+      message: 'Buchung wirklich stornieren?',
+      confirmLabel: 'Stornieren',
+    })
+    if (!ok) return
     await cancelBooking.mutateAsync(booking.id)
     resetForm()
     onClose()

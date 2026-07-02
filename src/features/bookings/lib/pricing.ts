@@ -27,11 +27,28 @@ function readPreisgruppe(resource: Resource, preisgruppeFeld: string): string {
  * PKW-Liste.
  */
 export function resourceCategory(resource: Resource, preisgruppeFeld: string): ResourceCategory {
-  const name = resource.name.toLowerCase()
-  const gruppe = readPreisgruppe(resource, preisgruppeFeld).toLowerCase()
-  if (gruppe.includes('anhaenger') || gruppe.includes('anhänger') || name.includes('anhänger') || name.includes('anhaenger')) return 'anhaenger'
-  if (gruppe.includes('transporter') || gruppe.includes('lkw')) return 'transporter'
+  return categorize(resource.name, readPreisgruppe(resource, preisgruppeFeld))
+}
+
+/**
+ * Reine Klassifizierung aus Fahrzeugname + Preisgruppe. Extrahiert aus
+ * resourceCategory, damit die öffentliche Buchung (die kein Resource-Objekt hat)
+ * dieselbe Regel nutzt statt sie zu duplizieren.
+ */
+export function categorize(name: string, gruppe: string): ResourceCategory {
+  const n = name.toLowerCase()
+  const g = gruppe.toLowerCase()
+  if (g.includes('anhaenger') || g.includes('anhänger') || n.includes('anhänger') || n.includes('anhaenger')) return 'anhaenger'
+  if (g.includes('transporter') || g.includes('lkw')) return 'transporter'
   return 'pkw'
+}
+
+/** Ordnet eine Kategorie dem Namensmuster der passenden Preisliste zu. */
+export function priceListMatchesCategory(listName: string, category: ResourceCategory): boolean {
+  const n = listName.toLowerCase()
+  if (category === 'anhaenger') return n.includes('anhänger') || n.includes('anhaenger')
+  if (category === 'transporter') return n.includes('lkw') || n.includes('transporter')
+  return n.includes('pkw') || n.includes('9-sitzer')
 }
 
 /**
@@ -48,14 +65,12 @@ export function matchPriceList(
     const n = pl.name.toLowerCase()
     const typeMatch = isGewerbe ? n.includes('gewerbe') : n.includes('privat')
     if (!typeMatch) return false
-    if (category === 'anhaenger') return n.includes('anhänger') || n.includes('anhaenger')
-    if (category === 'transporter') return n.includes('lkw') || n.includes('transporter')
-    return n.includes('pkw') || n.includes('9-sitzer')
+    return priceListMatchesCategory(pl.name, category)
   }) ?? null
 }
 
 /** Entfernt Kategorie-Wörter → Kern (z.B. nur der Klassenbuchstabe). */
-function stripCategory(s: string): string {
+export function stripCategory(s: string): string {
   return s
     .toLowerCase()
     .replace(/pkw|9-?sitzer|lkw|transporter|anh(ae|ä)nger/g, '')

@@ -4,6 +4,7 @@ import { useLocations, useCreateLocation, useUpdateLocation, useDeleteLocation }
 import type { Location } from '@/features/locations'
 import { fileService } from '@/features/files/service/fileService'
 import { FileManager } from '@/features/files/components/FileManager'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { supabase } from '@/lib/supabase'
 import { useWorkspace, useCan, useCompanySettings, useUpdateCompanySettings, usePermissionOverrides, useUpsertPermissionOverride, useRemovePermissionOverride } from '@/features/workspace'
 import type { PermissionOverrideWithId } from '@/features/workspace/hooks/usePermissionOverrides'
@@ -448,6 +449,7 @@ function CompanyLogoSection() {
 export function SettingsPage() {
   const { activeRole, activeCompanyId } = useWorkspace()
   const can = useCan()
+  const confirm = useConfirm()
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState<Tab>('profil')
   const companySettings = useCompanySettings()
@@ -538,7 +540,7 @@ export function SettingsPage() {
   }
 
   async function handleResDelete(def: { id: string; label: string }) {
-    if (!confirm(`Feld "${def.label}" wirklich löschen?`)) return
+    if (!(await confirm({ message: `Feld „${def.label}" wirklich löschen?` }))) return
     await deleteResDef.mutateAsync(def.id)
   }
 
@@ -555,7 +557,7 @@ export function SettingsPage() {
   }
 
   async function handleBookDelete(def: { id: string; label: string }) {
-    if (!confirm(`Feld "${def.label}" wirklich löschen?`)) return
+    if (!(await confirm({ message: `Feld „${def.label}" wirklich löschen?` }))) return
     await deleteBookDef.mutateAsync(def.id)
   }
 
@@ -571,7 +573,7 @@ export function SettingsPage() {
   }
 
   async function handleStaffDelete(def: { id: string; label: string }) {
-    if (!confirm(`Feld "${def.label}" wirklich löschen?`)) return
+    if (!(await confirm({ message: `Feld „${def.label}" wirklich löschen?` }))) return
     await deleteStaffDef.mutateAsync(def.id)
   }
 
@@ -866,7 +868,7 @@ export function SettingsPage() {
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => { if (confirm(`Standort „${loc.name}" löschen?`)) deleteLocation.mutate(loc.id) }}
+                        onClick={async () => { if (await confirm({ message: `Standort „${loc.name}" wirklich löschen?` })) deleteLocation.mutate(loc.id) }}
                         className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

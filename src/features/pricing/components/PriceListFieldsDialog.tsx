@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { FieldDefinitionDialog } from '@/features/resources/components/FieldDefinitionDialog'
+import { useConfirm } from '@/components/ConfirmDialog'
 import type { PriceListItemFieldDefinition } from '../types'
 import type { ResourceFieldDefinition, ResourceFieldType } from '@/features/resources/types'
 import {
@@ -90,6 +91,7 @@ interface Props {
 
 export function PriceListFieldsDialog({ open, priceListId, definitions, onClose }: Props) {
   const { activeCompanyId } = useWorkspace()
+  const confirm = useConfirm()
   const queryClient = useQueryClient()
   const createFieldDef = useCreatePriceListItemFieldDefinition(priceListId)
   const updateFieldDef = useUpdatePriceListItemFieldDefinition(priceListId)
@@ -133,7 +135,8 @@ export function PriceListFieldsDialog({ open, priceListId, definitions, onClose 
   }
 
   async function handleDelete(def: PriceListItemFieldDefinition) {
-    if (!confirm(`Spalte "${def.label}" wirklich löschen?`)) return
+    const ok = await confirm({ message: `Spalte „${def.label}" wirklich löschen?` })
+    if (!ok) return
     await deleteFieldDef.mutateAsync(def.id)
   }
 

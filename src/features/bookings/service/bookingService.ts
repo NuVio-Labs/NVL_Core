@@ -154,4 +154,22 @@ export const bookingService = {
     if (error) throw error
     return (data ?? []).length === 0
   },
+
+  /**
+   * Offene Online-Anfragen (status='pending', metadata.source='online') eines
+   * Mandanten — unabhängig vom Zeitfenster, da Anfragen weit in der Zukunft
+   * liegen können. Für die „Online-Anfragen"-Liste im Dashboard.
+   */
+  async listPendingOnline(companyId: string): Promise<Booking[]> {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('status', 'pending')
+      .eq('metadata->>source', 'online')
+      .order('starts_at', { ascending: true })
+    if (error) throw error
+    return data ?? []
+  },
+
 }

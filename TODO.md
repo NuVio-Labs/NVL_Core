@@ -46,10 +46,8 @@ Der Vertrags-Wizard (aus Buchung → Kundendaten → Schadensprotokoll → Absch
 
 ## 1. Quick Wins — hoher Hebel, kleiner Aufwand (zuerst)
 
-- 🟢 ⭐⭐ **Dashboard → Link zum Vertrag** — direkter Vertrags-Link in der Buchungsliste, spart
-  Navigation (Dashboard → Buchungen → Vertrag).
-- 🟢 ⭐⭐ **PWA-Icons** — Platzhalter „N" in `public/` durch echtes Logo ersetzen. Trivial, aber
-  sichtbar bei Installation der App.
+_Beide am 30.06.2026 erledigt → siehe [ERLEDIGT.md](ERLEDIGT.md):_
+_Dashboard-Buchungszeilen klickbar (öffnen Buchung inkl. Vertragsdaten) · PWA-Icons auf echtes NuVio-Logo._
 
 ## 2. Strategisch wichtig — größere Vorhaben
 

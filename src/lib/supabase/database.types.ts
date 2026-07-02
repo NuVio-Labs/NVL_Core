@@ -1070,13 +1070,81 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      // Öffentliche Lese-Views für die anonyme Online-Buchung (Migration
+      // _GEPLANT_online_buchung_03_public_views.sql). Nur freigegebene Felder.
+      public_companies: {
+        Row: { slug: string | null; name: string | null; lead_hours: number | null }
+        Relationships: []
+      }
+      public_stations: {
+        Row: {
+          company_slug: string | null
+          name: string | null
+          slug: string | null
+          address: string | null
+          phone: string | null
+          online_booking_enabled: boolean | null
+        }
+        Relationships: []
+      }
+      public_vehicles: {
+        Row: {
+          company_slug: string | null
+          station_slug: string | null
+          id: string | null
+          name: string | null
+          preis_gruppe: string | null
+          ahk: string | null
+          sitze: number | null
+        }
+        Relationships: []
+      }
+      public_price_items: {
+        Row: {
+          company_slug: string | null
+          price_list_name: string | null
+          item_name: string | null
+          tarif_24std: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_email_for_username: { Args: { p_username: string }; Returns: string }
       get_my_role: { Args: { p_company_id: string }; Returns: string }
       is_platform_owner: { Args: never; Returns: boolean }
       next_contract_number: { Args: { p_company_id: string }; Returns: number }
+      public_available_vehicles: {
+        Args: {
+          p_company_slug: string
+          p_station_slug: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          id: string
+          name: string
+          preis_gruppe: string | null
+          ahk: string | null
+          sitze: number | null
+        }[]
+      }
+      create_public_booking_request: {
+        Args: {
+          p_company_slug: string
+          p_station_slug: string
+          p_resource_id: string
+          p_from: string
+          p_to: string
+          p_first_name: string
+          p_last_name: string
+          p_phone: string
+          p_email?: string | null
+          p_notes?: string | null
+          p_honeypot?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       membership_role:

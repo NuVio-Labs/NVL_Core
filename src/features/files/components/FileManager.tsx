@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Upload, Trash2, FileText, Image, Download, Loader2 } from 'lucide-react'
 import { useFiles, useUploadFile, useDeleteFile } from '../hooks/useFiles'
 import { fileService } from '../service/fileService'
+import { useConfirm } from '@/components/ConfirmDialog'
 import type { EntityType, CompanyFile } from '../types'
 
 interface Props {
@@ -71,6 +72,7 @@ export function FileManager({ entityType, entityId, readonly }: Props) {
   const { data: files = [], isLoading } = useFiles(entityType, entityId)
   const upload = useUploadFile(entityType, entityId)
   const deleteFile = useDeleteFile(entityType, entityId)
+  const confirm = useConfirm()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -91,8 +93,9 @@ export function FileManager({ entityType, entityId, readonly }: Props) {
     }
   }
 
-  function handleDelete(file: CompanyFile) {
-    if (!confirm(`„${file.label ?? file.file_name}" wirklich löschen?`)) return
+  async function handleDelete(file: CompanyFile) {
+    const ok = await confirm({ message: `„${file.label ?? file.file_name}" wirklich löschen?` })
+    if (!ok) return
     deleteFile.mutate({ fileId: file.id, filePath: file.file_path })
   }
 

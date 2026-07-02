@@ -22,6 +22,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-02',
+    title: 'Update 02.07.2026',
+    date: '02.07.2026',
+    changes: [
+      { type: 'new', text: 'Ihre Kundinnen und Kunden können jetzt online direkt eine Station auswählen und ein Fahrzeug für einen Zeitraum unverbindlich anfragen — mit Richtpreis-Anzeige, ganz ohne Anruf.' },
+      { type: 'new', text: 'Neue Übersicht „Online-Anfragen" im Dashboard: eingegangene Anfragen sehen Sie sofort mit Kontaktdaten und können sie mit einem Klick bestätigen (dabei Preis und Details ergänzen) oder ablehnen.' },
+      { type: 'improved', text: 'Bei der Online-Anfrage werden nur Fahrzeuge angezeigt, die an der gewählten Station stehen und im Zeitraum frei sind — inklusive Mindestvorlauf, damit genug Zeit zur Vorbereitung bleibt.' },
+    ],
+  },
+  {
+    id: '2026-06-30',
+    title: 'Update 30.06.2026',
+    date: '30.06.2026',
+    changes: [
+      { type: 'improved', text: 'Buchungen lassen sich jetzt direkt vom Dashboard aus öffnen — ein Klick auf eine Buchung führt sofort zu Details und Vertragsdaten, ohne Umweg über die Buchungsliste.' },
+      { type: 'improved', text: 'Sicherheitsabfragen vor dem Löschen erscheinen jetzt als gestaltetes Fenster im Design der App statt als schlichtes Browser-Pop-up — einheitlich auf allen Seiten.' },
+      { type: 'improved', text: 'Das echte NuVio-Logo erscheint jetzt überall: auf der Anmeldeseite, in der Seitenleiste sowie beim Installieren und auf dem Startbildschirm.' },
+    ],
+  },
+  {
     id: '2026-06-29',
     title: 'Update 29.06.2026',
     date: '29.06.2026',

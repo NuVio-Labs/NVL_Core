@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2, CircleCheck, CircleOff, ChevronUp, ChevronDown, ChevronsUpDown, Search, X, Package, Paperclip } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useCan } from '@/features/workspace'
 import { FileManager } from '@/features/files/components/FileManager'
 import {
@@ -114,6 +115,7 @@ function StandortCell({ resource, onSave }: { resource: Resource; onSave: (id: s
 
 export function ResourcesPage() {
   const can = useCan()
+  const confirm = useConfirm()
   const canManage = can('resources.data', 'update')
 
   const { data: resources = [], isLoading } = useResources()
@@ -213,7 +215,8 @@ export function ResourcesPage() {
   }
 
   async function handleDelete(resource: Resource) {
-    if (!confirm(`Ressource "${resource.name}" wirklich löschen?`)) return
+    const ok = await confirm({ message: `Ressource „${resource.name}" wirklich löschen?` })
+    if (!ok) return
     await deleteResource.mutateAsync(resource.id)
   }
 

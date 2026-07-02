@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Plus, Car, CalendarDays, Users, AlertTriangle, MapPin, CheckCircle2, X, ArrowDownToLine, ArrowUpFromLine, Clock, Euro, Undo2 } from 'lucide-react'
+import { Plus, Car, CalendarDays, Users, AlertTriangle, MapPin, CheckCircle2, X, ArrowDownToLine, ArrowUpFromLine, Clock, Euro, Undo2, Globe, Phone, Mail } from 'lucide-react'
 import { useAuth } from '@/features/auth'
 import { useWorkspace } from '@/features/workspace'
-import { useBookingsForRange, useMarkReturned, useUndoReturn } from '@/features/bookings/hooks/useBookings'
+import { useBookingsForRange, useMarkReturned, useUndoReturn, usePendingOnlineRequests, useCancelBooking } from '@/features/bookings/hooks/useBookings'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useResources, useUpdateResource } from '@/features/resources/hooks/useResources'
 import { useStaffMembers } from '@/features/staff/hooks/useStaff'
 import { useLocations } from '@/features/locations'
@@ -91,12 +92,12 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 /** Liste mit Buchungen, deren Abhol- ODER Rückgabezeit fokussiert wird. */
-function MovementRow({ booking, resources, mode }: { booking: Booking; resources: Resource[]; mode: 'pickup' | 'return' }) {
+function MovementRow({ booking, resources, mode, onSelect }: { booking: Booking; resources: Resource[]; mode: 'pickup' | 'return'; onSelect?: (b: Booking) => void }) {
   const resource = resources.find((r) => r.id === booking.resource_id)
   const time = mode === 'pickup' ? booking.starts_at : booking.ends_at
   const overdue = mode === 'return' && new Date(booking.ends_at) < new Date()
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+    <RowWrapper booking={booking} onSelect={onSelect}>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
         <p className="text-xs text-muted-foreground truncate">{resource?.name ?? '—'}</p>
@@ -107,7 +108,28 @@ function MovementRow({ booking, resources, mode }: { booking: Booking; resources
       )}>
         {formatTime(time)}{overdue ? ' · überfällig' : ''}
       </span>
-    </div>
+    </RowWrapper>
+  )
+}
+
+/**
+ * Klickbarer Zeilen-Container für Buchungen. Mit `onSelect` öffnet ein Klick die
+ * Buchung (BookingDialog → enthält Vertragsdaten), sonst reine Anzeige. Spart die
+ * Navigation Dashboard → Buchungen → Vertrag.
+ */
+function RowWrapper({ booking, onSelect, children }: { booking: Booking; onSelect?: (b: Booking) => void; children: React.ReactNode }) {
+  const base = 'flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 transition-colors'
+  if (!onSelect) {
+    return <div className={cn(base, 'hover:bg-muted/30')}>{children}</div>
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(booking)}
+      className={cn(base, 'w-full text-left hover:bg-muted/50 cursor-pointer')}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -232,7 +254,84 @@ function ReturnedRow({ booking, resources }: { booking: Booking; resources: Reso
   )
 }
 
-function BookingRow({ booking, resources }: { booking: Booking; resources: Resource[] }) {
+/**
+ * Zeile in „Online-Anfragen": eine über die öffentliche Buchung eingegangene
+ * Anfrage (status='pending', metadata.source='online'). Bestätigen macht die
+ * Buchung verbindlich (→confirmed, mit Konfliktprüfung im Service), Ablehnen
+ * storniert sie (→cancelled). Zeigt die Kontaktdaten des Gasts.
+ */
+function OnlineRequestRow({ booking, resources, onConfirm }: { booking: Booking; resources: Resource[]; onConfirm: (b: Booking) => void }) {
+  const resource = resources.find((r) => r.id === booking.resource_id)
+  const meta = (booking.metadata ?? {}) as Record<string, unknown>
+  const email = typeof meta.contact_email === 'string' ? meta.contact_email : null
+  const cancelBooking = useCancelBooking()
+  const confirm = useConfirm()
+  const [error, setError] = useState<string | null>(null)
+
+  const busy = cancelBooking.isPending
+
+  // Bestätigen öffnet nur den Buchungsdialog (Anfrage bleibt vorerst 'pending').
+  // Erst das Speichern im Dialog setzt 'confirmed' — ein Abbruch lässt die
+  // Anfrage in der Liste. So verschwindet nichts vorschnell.
+  function handleConfirm() {
+    setError(null)
+    onConfirm(booking)
+  }
+
+  async function handleReject() {
+    const ok = await confirm({
+      title: 'Anfrage ablehnen',
+      message: `Anfrage von ${booking.first_name} ${booking.last_name} wirklich ablehnen?`,
+      confirmLabel: 'Ablehnen',
+    })
+    if (!ok) return
+    setError(null)
+    try {
+      await cancelBooking.mutateAsync(booking.id)
+    } catch {
+      setError('Das Ablehnen ist fehlgeschlagen.')
+    }
+  }
+
+  return (
+    <div className="px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {resource?.name ?? '—'} · {formatDate(booking.starts_at)} {formatTime(booking.starts_at)} – {formatDate(booking.ends_at)} {formatTime(booking.ends_at)}
+          </p>
+          <p className="text-xs text-muted-foreground truncate flex items-center gap-2 mt-0.5">
+            <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{booking.phone}</span>
+            {email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{email}</span>}
+          </p>
+          {booking.notes && <p className="text-xs text-muted-foreground truncate mt-0.5 italic">„{booking.notes}"</p>}
+          {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={handleConfirm}
+            disabled={busy}
+            className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+          >
+            <CheckCircle2 className="w-3 h-3" />
+            Bestätigen
+          </button>
+          <button
+            onClick={handleReject}
+            disabled={busy}
+            className="text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
+          >
+            <X className="w-3 h-3" />
+            Ablehnen
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BookingRow({ booking, resources, onSelect }: { booking: Booking; resources: Resource[]; onSelect?: (b: Booking) => void }) {
   const resource = resources.find((r) => r.id === booking.resource_id)
   const now = new Date()
   const starts = new Date(booking.starts_at)
@@ -242,7 +341,7 @@ function BookingRow({ booking, resources }: { booking: Booking; resources: Resou
   const isEndingToday = startOfDay(ends) <= now && now <= endOfDay(ends)
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
+    <RowWrapper booking={booking} onSelect={onSelect}>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{booking.first_name} {booking.last_name}</p>
         <p className="text-xs text-muted-foreground truncate">
@@ -260,7 +359,7 @@ function BookingRow({ booking, resources }: { booking: Booking; resources: Resou
           {isActive ? 'Aktiv' : isStartingToday ? 'Startet heute' : isEndingToday ? 'Endet heute' : '—'}
         </span>
       </div>
-    </div>
+    </RowWrapper>
   )
 }
 
@@ -397,6 +496,10 @@ export function DashboardPage() {
   const { user, profile } = useAuth()
   const { activeCompany, activeMembership, activeRole } = useWorkspace()
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<Booking | undefined>()
+  // true, wenn der Dialog aus einer Online-Anfrage heraus geöffnet wurde:
+  // Speichern setzt dann status='confirmed', Abbrechen lässt sie 'pending'.
+  const [confirmingRequest, setConfirmingRequest] = useState(false)
   const [bookingPeriod, setBookingPeriod] = useState<'today' | 'week' | 'month'>('today')
 
   // Rollen — Umsatzdaten NUR für Admin. Owner zählt als Admin.
@@ -420,6 +523,8 @@ export function DashboardPage() {
   const { data: resources = [] } = useResources()
   const { data: staffMembers = [] } = useStaffMembers()
   const { data: locations = [] } = useLocations()
+  // Online-Anfragen (pending, source=online) — nur für Rollen mit Verwaltungsrecht.
+  const { data: onlineRequests = [] } = usePendingOnlineRequests()
 
   // Anzeigename des quittierenden Mitarbeiters für den Rückgabe-Log.
   const currentUserId = user?.id ?? ''
@@ -534,6 +639,15 @@ export function DashboardPage() {
 
   const periodCount = bookingPeriod === 'today' ? todayBookings.length : bookingPeriod === 'week' ? weekBookings.length : monthBookings.length
 
+  // Klick auf eine Buchungszeile öffnet die Buchung (inkl. Vertragsdaten) — nur
+  // für Rollen mit Bearbeitungsrecht. Mitarbeiter sehen die Zeilen als Anzeige.
+  const openBooking = canManage ? (b: Booking) => { setSelectedBooking(b); setBookingDialogOpen(true) } : undefined
+  function closeBookingDialog() {
+    setBookingDialogOpen(false)
+    setSelectedBooking(undefined)
+    setConfirmingRequest(false)
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -546,7 +660,7 @@ export function DashboardPage() {
         </div>
         {canManage && (
           <button
-            onClick={() => setBookingDialogOpen(true)}
+            onClick={() => { setSelectedBooking(undefined); setBookingDialogOpen(true) }}
             className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="w-4 h-4" />
@@ -608,30 +722,58 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* Online-Anfragen — Admin + Bearbeiter. Prominent oben, da sie eine
+          Reaktion (Bestätigen/Ablehnen) erfordern. Volle Breite. */}
+      {canManage && onlineRequests.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-blue-600" />
+              <SectionHeader title="Online-Anfragen" />
+            </div>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+              {onlineRequests.length}
+            </span>
+          </div>
+          <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
+            <div className="max-h-[320px] overflow-y-auto">
+              {onlineRequests.map((b) => (
+                <OnlineRequestRow
+                  key={b.id}
+                  booking={b}
+                  resources={resources}
+                  onConfirm={(req) => { setSelectedBooking(req); setConfirmingRequest(true); setBookingDialogOpen(true) }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== Widget-Grid ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Mitarbeiter: eigene Termine zuerst */}
         {isStaff && (
           <ListCard title="Meine Termine heute" badge={myToday.length} empty="Keine eigenen Termine heute.">
-            {myToday.map((b) => <BookingRow key={b.id} booking={b} resources={resources} />)}
+            {myToday.map((b) => <BookingRow key={b.id} booking={b} resources={resources} onSelect={openBooking} />)}
           </ListCard>
         )}
 
         {/* Abholungen heute — alle Rollen */}
         <ListCard title="Abholungen heute" badge={todayPickups.length} empty="Keine Abholungen heute.">
-          {todayPickups.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="pickup" />)}
+          {todayPickups.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="pickup" onSelect={openBooking} />)}
         </ListCard>
 
         {/* Rückgaben heute — alle Rollen */}
         <ListCard title="Rückgaben heute" badge={todayReturns.length} empty="Keine Rückgaben heute.">
-          {todayReturns.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="return" />)}
+          {todayReturns.map((b) => <MovementRow key={b.id} booking={b} resources={resources} mode="return" onSelect={openBooking} />)}
         </ListCard>
 
         {/* Aktive Vermietungen — Admin + Bearbeiter */}
         {canManage && (
           <ListCard title="Aktive Vermietungen" badge={activeRentals.length} empty="Keine aktiven Vermietungen.">
-            {activeRentals.map((b) => <BookingRow key={b.id} booking={b} resources={resources} />)}
+            {activeRentals.map((b) => <BookingRow key={b.id} booking={b} resources={resources} onSelect={openBooking} />)}
           </ListCard>
         )}
 
@@ -707,7 +849,7 @@ export function DashboardPage() {
         )}
       </div>
 
-      {canManage && <BookingDialog open={bookingDialogOpen} onClose={() => setBookingDialogOpen(false)} />}
+      {canManage && <BookingDialog open={bookingDialogOpen} booking={selectedBooking} confirmOnSave={confirmingRequest} onClose={closeBookingDialog} />}
     </div>
   )
 }

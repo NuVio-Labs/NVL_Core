@@ -12,7 +12,10 @@ export function Sidebar() {
   return (
     <aside className="w-60 shrink-0 border-r border-border bg-background flex flex-col h-screen">
       <div className="h-14 flex items-center justify-between px-5 border-b border-border">
-        <span className="font-bold text-base tracking-tight">NuVio Core</span>
+        <span className="flex items-center gap-2 font-bold text-base tracking-tight">
+          <img src="/assets/Icon.webp" alt="" className="h-7 w-7 rounded-md object-cover" />
+          NuVio Core
+        </span>
         <button onClick={close} className="md:hidden p-1 rounded hover:bg-muted transition-colors">
           <X className="w-4 h-4" />
         </button>
