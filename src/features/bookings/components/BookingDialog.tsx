@@ -14,6 +14,7 @@ import { bookingService } from '../service/bookingService'
 import { ContractDataView } from './ContractDataView'
 import { resourceCategory, matchPriceList, matchPriceClassItem, resolveTariff } from '../lib/pricing'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { useToast } from '@/components/Toast'
 import { useCompanySettings, useWorkspace } from '@/features/workspace'
 import { useCustomers, useCreateCustomer } from '@/features/customers'
 import type { Booking, BookingFieldDefinition, BookingWithCreator } from '../types'
@@ -114,6 +115,7 @@ export function BookingDialog({ open, booking, initialDate, confirmOnSave, onClo
   const [showContractData, setShowContractData] = useState(false)
   const createCustomer = useCreateCustomer()
   const confirm = useConfirm()
+  const toast = useToast()
 
   const metaSchema = buildMetaSchema(fieldDefinitions)
   const schema = baseSchema
@@ -392,6 +394,16 @@ export function BookingDialog({ open, booking, initialDate, confirmOnSave, onClo
       // das Speichern macht die pending-Anfrage verbindlich.
       const statusPatch = confirmOnSave ? { status: 'confirmed' as const } : {}
       await updateBooking.mutateAsync({ id: booking.id, payload: { ...payload, ...statusPatch, updated_by: me } })
+      // Online-Anfrage bestätigt: Kunde wird NICHT automatisch benachrichtigt —
+      // die Station muss ihn selbst kontaktieren (E-Mail-Versand ist späterer Schritt).
+      if (confirmOnSave) {
+        toast({
+          variant: 'warning',
+          title: 'Buchung bestätigt',
+          message: `Bitte ${payload.first_name} ${payload.last_name} noch telefonisch bestätigen — der Kunde wird nicht automatisch benachrichtigt.`,
+          durationMs: 8000,
+        })
+      }
     } else {
       // Neu: created_by = Ersteller.
       await createBooking.mutateAsync({ ...payload, created_by: me })
